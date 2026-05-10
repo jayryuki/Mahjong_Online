@@ -68,6 +68,20 @@ function findYakuhai(tiles: TileDef[], seatWind: string, roundWind: string): Pat
     if (key.includes('chun')) {
       patterns.push({ id: 'yakuhai-chun', name: 'Chun', hanValue: 1, description: 'Red dragon triplet' });
     }
+    // Wind yakuhai: round wind and seat wind triplets
+    const windNames: Array<'east' | 'south' | 'west' | 'north'> = ['east', 'south', 'west', 'north'];
+    for (const wind of windNames) {
+      if (key.includes(wind)) {
+        if (wind === roundWind) {
+          const capWind = wind.charAt(0).toUpperCase() + wind.slice(1);
+          patterns.push({ id: `yakuhai-round-${wind}`, name: `Round Wind (${capWind})`, hanValue: 1, description: 'Round wind triplet' });
+        }
+        if (wind === seatWind) {
+          const capWind = wind.charAt(0).toUpperCase() + wind.slice(1);
+          patterns.push({ id: `yakuhai-seat-${wind}`, name: `Seat Wind (${capWind})`, hanValue: 1, description: 'Seat wind triplet' });
+        }
+      }
+    }
   }
 
   return patterns;
@@ -83,7 +97,12 @@ function isToitoi(melds: Meld[], concealed: TileDef[]): boolean {
 }
 
 function isChanta(tiles: TileDef[], melds: Meld[]): boolean {
+  // Chanta: every block contains at least one terminal or honor
+  // Approximate: all suited tiles must be rank 1-3 or 7-9, ensuring any possible sequence touches a terminal
+  // Also must contain at least one terminal or honor (otherwise it's just tanyao)
+  const hasTerminalOrHonor = tiles.some(t => !t.suit || t.rank === 1 || t.rank === 9);
+  if (!hasTerminalOrHonor) return false;
   return tiles.every(t =>
-    !t.suit || t.rank === 1 || t.rank === 9 || t.honorType !== undefined
+    !t.suit || t.rank! <= 3 || t.rank! >= 7
   );
 }

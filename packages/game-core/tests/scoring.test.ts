@@ -8,6 +8,7 @@ function man(r: number, i: number) { return createSuitedTile('man', r, i); }
 function pin(r: number, i: number) { return createSuitedTile('pin', r, i); }
 function sou(r: number, i: number) { return createSuitedTile('sou', r, i); }
 function dragon(n: 'haku' | 'hatsu' | 'chun', i: number) { return createHonorTile(n, i); }
+function wind(n: 'east' | 'south' | 'west' | 'north', i: number) { return createHonorTile(n, i); }
 
 describe('evaluatePatterns', () => {
   it('detects tanyao', () => {
@@ -62,6 +63,48 @@ describe('evaluatePatterns', () => {
     const patterns = evaluatePatterns(concealed, [], 'ron', 'east', 'east');
     const tsumo = patterns.find(p => p.id === 'menzen-tsumo');
     expect(tsumo).toBeUndefined();
+  });
+
+  it('detects chanta with terminals in every block', () => {
+    const concealed = [
+      man(1, 0), man(2, 0), man(3, 0),
+      pin(7, 0), pin(8, 0), pin(9, 0),
+      sou(1, 0), sou(2, 0), sou(3, 0),
+      wind('east', 0), wind('east', 1), wind('east', 2),
+      dragon('chun', 0), dragon('chun', 1),
+    ];
+    const patterns = evaluatePatterns(concealed, [], 'tsumo', 'south', 'east');
+    const chanta = patterns.find(p => p.id === 'chanta');
+    expect(chanta).toBeDefined();
+    expect(chanta!.hanValue).toBe(2); // concealed chanta is 2 han
+  });
+
+  it('detects round wind yakuhai', () => {
+    const concealed = [
+      man(2, 0), man(3, 0), man(4, 0),
+      pin(5, 0), pin(6, 0), pin(7, 0),
+      sou(3, 0), sou(4, 0), sou(5, 0),
+      wind('east', 0), wind('east', 1), wind('east', 2),
+      man(5, 0), man(5, 1),
+    ];
+    const patterns = evaluatePatterns(concealed, [], 'ron', 'south', 'east');
+    const roundEast = patterns.find(p => p.id === 'yakuhai-round-east');
+    expect(roundEast).toBeDefined();
+    expect(roundEast!.hanValue).toBe(1);
+  });
+
+  it('detects seat wind yakuhai', () => {
+    const concealed = [
+      man(2, 0), man(3, 0), man(4, 0),
+      pin(5, 0), pin(6, 0), pin(7, 0),
+      sou(3, 0), sou(4, 0), sou(5, 0),
+      wind('south', 0), wind('south', 1), wind('south', 2),
+      man(5, 0), man(5, 1),
+    ];
+    const patterns = evaluatePatterns(concealed, [], 'ron', 'south', 'east');
+    const seatSouth = patterns.find(p => p.id === 'yakuhai-seat-south');
+    expect(seatSouth).toBeDefined();
+    expect(seatSouth!.hanValue).toBe(1);
   });
 });
 
