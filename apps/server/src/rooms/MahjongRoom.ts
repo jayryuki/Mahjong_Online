@@ -106,6 +106,14 @@ export class MahjongRoom extends Room<GameState> {
     this.onMessage('request-hand', (client) => {
       this.handleRequestHand(client);
     });
+
+    this.onMessage('declare-riichi', (client) => {
+      this.handleDeclareRiichi(client);
+    });
+
+    this.onMessage('next-hand', () => {
+      this.handleNextHand();
+    });
   }
 
   onJoin(client: Client, options: { displayName: string }) {
@@ -452,9 +460,18 @@ export class MahjongRoom extends Room<GameState> {
     const concealed = this.concealedTiles.get(seat)!;
     const melds = this.seatMelds.get(seat)!;
 
-    // Check tsumo
-    if (isValidWinningShape([...concealed], melds.length)) {
-      actions.push('DECLARE_WIN_TSUMO');
+    if (this.seatIsRiichi(seat)) {
+      // Riichi player: only discard and tsumo
+      if (isValidWinningShape([...concealed], melds.length)) {
+        actions.push('DECLARE_WIN_TSUMO');
+      }
+    } else {
+      if (isValidWinningShape([...concealed], melds.length)) {
+        actions.push('DECLARE_WIN_TSUMO');
+      }
+      if (this.canDeclareRiichi(seat)) {
+        actions.push('DECLARE_RIICHI');
+      }
     }
 
     // Transition to TURN_DECISION
@@ -857,6 +874,26 @@ export class MahjongRoom extends Room<GameState> {
     this.syncSchemaFromInternal();
   }
 
+  private handleDeclareRiichi(client: Client) {
+    const seat = this.getSeatForClient(client);
+    if (seat === null || seat !== this.activeSeat) return;
+    if (this.gamePhase.type !== 'TURN_DECISION') return;
+    if (!this.canDeclareRiichi(seat)) return;
+
+    this.applyRiichiDeclaration(seat);
+
+    this.setPhase({
+      type: 'TURN_DECISION',
+      activeSeat: seat,
+      legalActions: ['DISCARD_TILE'],
+    });
+    this.syncSchemaFromInternal();
+
+    client.send('legal-actions', { actions: ['DISCARD_TILE'] });
+    client.send('riichi-confirmed', { seat });
+    this.broadcast('riichi-declared', { seat });
+  }
+
   // ---------------------------------------------------------------------------
   // Reaction handlers
   // ---------------------------------------------------------------------------
@@ -1072,6 +1109,74 @@ export class MahjongRoom extends Room<GameState> {
     }
 
     this.honba++;
+  }
+
+  private handleNextHand() {
+    if (this.gamePhase.type !== 'HAND_END') return;
+
+    // For now: end after East round (4 hands with rotating dealer)
+    // If dealer has rotated all the way back, match ends
+    const winInfo = this.state.winInfo ? JSON.parse(this.state.winInfo) : null;
+    const dealerWon = winInfo && winInfo.winner === this.dealerSeat;
+    const wasExhaustiveDraw = !winInfo;
+
+    let nextDealerSeat = this.dealerSeat;
+    let nextHonba = this.honba;
+
+    if (dealerWon) {
+      // Dealer stays
+      nextHonba = this.honba;
+    } else if (wasExhaustiveDraw) {
+      // Exhaustive draw — dealer stays, honba already incremented
+      nextHonba = this.honba;
+    } else {
+      // Non-dealer wins — dealer rotates
+      nextDealerSeat = (this.dealerSeat + 1) % 4;
+      nextHonba = 0;
+
+      // If dealer would rotate back to seat 0, match ends (East Round complete)
+      if (nextDealerSeat === 0) {
+        const matchEndPhase: GamePhase = {
+          type: 'MATCH_END',
+          finalScores: this.scores.map((score, i) => ({
+            seatIndex: i,
+            points: score,
+            riichiDeposit: false,
+          })),
+        };
+        if (canTransition(this.gamePhase, matchEndPhase)) {
+          this.setPhase(matchEndPhase);
+          this.state.status = 'finished';
+          this.syncSchemaFromInternal();
+          this.broadcast('match-end', {
+            finalScores: this.scores.map((score, i) => ({ seatIndex: i, points: score })),
+          });
+        }
+        return;
+      }
+    }
+
+    this.dealerSeat = nextDealerSeat;
+    this.handNumber++;
+    this.honba = nextHonba;
+
+    const roundEndPhase: GamePhase = {
+      type: 'ROUND_END',
+      summary: {
+        roundWind: this.roundWind,
+        handNumber: this.handNumber,
+        honba: this.honba,
+        riichiSticks: this.riichiSticks,
+        result: null,
+        endReason: 'win' as const,
+        scoreChanges: [],
+      },
+    };
+
+    if (canTransition(this.gamePhase, roundEndPhase)) {
+      this.setPhase(roundEndPhase);
+      this.dealHand();
+    }
   }
 
   // ---------------------------------------------------------------------------
