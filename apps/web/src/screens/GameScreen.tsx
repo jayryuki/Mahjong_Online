@@ -107,6 +107,12 @@ export function GameScreen() {
   // Win result for display
   const [handResult, setHandResult] = useState<any>(null);
 
+  // Drawn tile ID (from tile-drawn message)
+  const [drawnTileId, setDrawnTileId] = useState<string | null>(null);
+
+  // Hand version tracking
+  const [handVersion, setHandVersion] = useState<number>(0);
+
   // Status message
   const [statusMessage, setStatusMessage] = useState<string>('Waiting for game to start...');
 
@@ -154,12 +160,24 @@ export function GameScreen() {
   useEffect(() => {
     if (!room) return;
 
+    room.send('request-hand');
+
     const unsubs: Array<() => void> = [];
 
-    const onDeal = (data: { tiles: string[] }) => {
+    const onHandState = (data: { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }>; handVersion: number }) => {
       const tiles = data.tiles.map(parseTileId);
       tiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
       setHandTiles(tiles);
+      setHandVersion(data.handVersion);
+      setHandResult(null);
+      setStatusMessage('Hand synced.');
+    };
+
+    const onDeal = (data: { tiles: string[]; handVersion?: number }) => {
+      const tiles = data.tiles.map(parseTileId);
+      tiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
+      setHandTiles(tiles);
+      if (data.handVersion !== undefined) setHandVersion(data.handVersion);
       setStatusMessage('Hand dealt! Waiting for your turn...');
       setHandResult(null);
     };
@@ -174,13 +192,15 @@ export function GameScreen() {
       }
     };
 
-    const onTileDrawn = (data: { tileId: string }) => {
+    const onTileDrawn = (data: { tileId: string; handVersion?: number }) => {
       const tile = parseTileId(data.tileId);
+      setDrawnTileId(data.tileId);
       setHandTiles((prev) => {
         const newTiles = [...prev, tile];
         newTiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
         return newTiles;
       });
+      if (data.handVersion !== undefined) setHandVersion(data.handVersion);
       setStatusMessage('Tile drawn! Choose an action.');
     };
 
@@ -193,10 +213,10 @@ export function GameScreen() {
       setStatusMessage(`Seat ${data.discardSeat} discarded. You can react!`);
     };
 
-    const onMeldApplied = (data: { meld: { type: string; tileIds: string[] } }) => {
-      // Remove melded tiles from hand
+    const onMeldApplied = (data: { meld: { type: string; tileIds: string[] }; handVersion?: number }) => {
       const meldTileIds = new Set(data.meld.tileIds);
       setHandTiles((prev) => prev.filter((t) => !meldTileIds.has(t.id)));
+      if (data.handVersion !== undefined) setHandVersion(data.handVersion);
       setStatusMessage(`Meld applied: ${data.meld.type}`);
     };
 
@@ -204,6 +224,7 @@ export function GameScreen() {
       setHandResult(data);
       setLegalActions([]);
       setReactionOptions([]);
+      setDrawnTileId(null);
       if (data.endReason === 'exhaustive-draw') {
         setStatusMessage('Exhaustive draw! No one wins this hand.');
       } else {
@@ -211,6 +232,16 @@ export function GameScreen() {
       }
     };
 
+    const onRiichiDeclared = (data: { seat: number }) => {
+      setStatusMessage(`Seat ${data.seat} declared Riichi!`);
+    };
+
+    const onMatchEnd = (data: { finalScores: Array<{ seatIndex: number; points: number }> }) => {
+      setStatusMessage('Match over!');
+      setHandResult({ endReason: 'match-end', finalScores: data.finalScores });
+    };
+
+    unsubs.push(room.onMessage('hand-state', onHandState));
     unsubs.push(room.onMessage('deal', onDeal));
     unsubs.push(room.onMessage('your-turn-draw', onYourTurnDraw));
     unsubs.push(room.onMessage('tile-drawn', onTileDrawn));
@@ -218,6 +249,8 @@ export function GameScreen() {
     unsubs.push(room.onMessage('reaction-options', onReactionOptions));
     unsubs.push(room.onMessage('meld-applied', onMeldApplied));
     unsubs.push(room.onMessage('hand-result', onHandResult));
+    unsubs.push(room.onMessage('riichi-declared', onRiichiDeclared));
+    unsubs.push(room.onMessage('match-end', onMatchEnd));
 
     return () => {
       for (const unsub of unsubs) {
@@ -261,6 +294,11 @@ export function GameScreen() {
         setLegalActions([]);
         setStatusMessage('Declaring Tsumo!');
         break;
+      case 'DECLARE_RIICHI':
+        room.send('declare-riichi');
+        setLegalActions([]);
+        setStatusMessage('Declaring Riichi!');
+        break;
     }
   }, [room]);
 
@@ -269,6 +307,7 @@ export function GameScreen() {
     if (!room) return;
     room.send('discard-tile', { tileId: tile.id });
     setHandTiles((prev) => prev.filter((t) => t.id !== tile.id));
+    setDrawnTileId(null);
     setLegalActions([]);
     setStatusMessage('Tile discarded. Waiting...');
   }, [room]);
@@ -354,7 +393,7 @@ export function GameScreen() {
       >
         {/* My hand area */}
         <div style={{ position: 'absolute', bottom: '4rem', left: '50%', transform: 'translateX(-50%)' }}>
-          <HandArea tiles={handTiles} onDiscard={handleDiscard} />
+          <HandArea tiles={handTiles} drawnTileId={drawnTileId} onDiscard={handleDiscard} />
         </div>
 
         {/* My melds */}
@@ -408,7 +447,20 @@ export function GameScreen() {
             maxWidth: '400px',
             textAlign: 'center',
           }}>
-            {handResult.endReason === 'exhaustive-draw' ? (
+            {handResult.endReason === 'match-end' ? (
+              <>
+                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 1rem 0' }}>Match Over</h2>
+                {handResult.finalScores?.map((s: any) => {
+                  const seat = seatDisplays[s.seatIndex];
+                  return (
+                    <div key={s.seatIndex} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0' }}>
+                      <span style={{ color: 'var(--text-primary)' }}>{seat?.displayName ?? `Seat ${s.seatIndex}`}</span>
+                      <span style={{ color: s.points >= 25000 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{s.points}</span>
+                    </div>
+                  );
+                })}
+              </>
+            ) : handResult.endReason === 'exhaustive-draw' ? (
               <>
                 <h2 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Exhaustive Draw</h2>
                 <p style={{ color: 'var(--text-secondary)' }}>No one wins this hand.</p>
@@ -434,6 +486,23 @@ export function GameScreen() {
                   </div>
                 )}
               </>
+            )}
+            {phase === 'HAND_END' && (
+              <Button
+                onClick={() => {
+                  if (handResult.endReason === 'match-end') {
+                    navigate('/');
+                  } else {
+                    room?.send('next-hand');
+                    setHandResult(null);
+                    setHandTiles([]);
+                    setDrawnTileId(null);
+                  }
+                }}
+                style={{ marginTop: '1.5rem', width: '100%' }}
+              >
+                {handResult.endReason === 'match-end' ? 'Back to Home' : 'Next Hand'}
+              </Button>
             )}
           </div>
         </div>
