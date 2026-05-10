@@ -8,8 +8,7 @@ export type { RulesPreset };
 // Placeholder for HandResult — will be defined in scoring/settlement.ts
 export type HandResult = unknown;
 
-// Placeholder for ActionType — will be defined in engine/actions.ts
-export type ActionType = string;
+import type { ActionType } from '../engine/actions.js';
 
 export interface MatchState {
   roomId: string;

@@ -3,14 +3,13 @@ import { Meld } from './meld.js';
 import { River } from './river.js';
 import { PlayerScoreState } from './player.js';
 import { WallState, DeadWallState, RoundSeedInfo } from './wall.js';
+import { ReactionState } from '../engine/reaction.js';
 
 export interface DoraState {
   indicators: TileDef[];
   uraIndicators?: TileDef[];
 }
 
-// Placeholder for ReactionState — will be defined in engine/reaction.ts
-export type ReactionState = unknown;
 
 export interface SeatRoundState {
   seatIndex: number;
