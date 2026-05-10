@@ -1,9 +1,9 @@
 import { PlayerState, SpectatorState, ScoreTrack, PlayerScoreState } from './player.js';
 import { RoundState, RoundSummary } from './round.js';
 import { TileDef } from './tile.js';
+import { RulesPreset } from '../rules/preset.js';
 
-// Placeholder for RulesPreset — will be defined in rules/preset.ts
-export type RulesPreset = unknown;
+export type { RulesPreset };
 
 // Placeholder for HandResult — will be defined in scoring/settlement.ts
 export type HandResult = unknown;
