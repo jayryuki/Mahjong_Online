@@ -1,6 +1,8 @@
 import { ActionType, ActionPayload } from './actions.js';
 import { RoundState } from '../models/round.js';
 import { RulesPreset } from '../rules/preset.js';
+import { isValidWinningShape } from '../scoring/validator.js';
+import { TileDef, Suit, WindName, DragonName } from '../models/tile.js';
 
 export function legalActionsForSeat(
   round: RoundState,
@@ -87,5 +89,38 @@ function isEligibleSeat(reaction: unknown, seatIndex: number): boolean {
   if (reaction && typeof reaction === 'object' && 'eligibleSeats' in reaction) {
     return (reaction as any).eligibleSeats?.includes(seatIndex) ?? false;
   }
+  return false;
+}
+
+const SUITS: Suit[] = ['man', 'pin', 'sou'];
+const HONOR_NAMES: (WindName | DragonName)[] = ['east', 'south', 'west', 'north', 'haku', 'hatsu', 'chun'];
+
+export function isTenpai(concealed: TileDef[], meldCount: number): boolean {
+  const expectedLength = (4 - meldCount) * 3 + 2 - 1;
+  if (concealed.length !== expectedLength) return false;
+
+  for (const suit of SUITS) {
+    for (let rank = 1; rank <= 9; rank++) {
+      const testTile: TileDef = {
+        id: `tenpai-test-${suit}-${rank}`,
+        suit,
+        rank,
+        isFlower: false,
+      };
+      if (isValidWinningShape([...concealed, testTile], meldCount)) return true;
+    }
+  }
+
+  for (const honorName of HONOR_NAMES) {
+    const honorType = ['east', 'south', 'west', 'north'].includes(honorName) ? 'wind' : 'dragon';
+    const testTile: TileDef = {
+      id: `tenpai-test-${honorName}`,
+      honorType,
+      honorName,
+      isFlower: false,
+    };
+    if (isValidWinningShape([...concealed, testTile], meldCount)) return true;
+  }
+
   return false;
 }
