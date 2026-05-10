@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/common/Button.js';
@@ -15,14 +15,14 @@ export function LobbyScreen() {
   const displayName = searchParams.get('name') || '';
   const roomId = searchParams.get('roomId') || '';
   const { room, state, error, join } = useGameClient(roomId);
-  const [joined, setJoined] = useState(false);
+  const joinedRef = useRef(false);
 
   useEffect(() => {
-    if (roomId && displayName && !joined) {
+    if (roomId && displayName && !joinedRef.current) {
+      joinedRef.current = true;
       join(displayName);
-      setJoined(true);
     }
-  }, [roomId, displayName, join, joined]);
+  }, [roomId, displayName, join]);
 
   const players: any[] = state?.players ? Array.from(state.players.values()) : [];
   const mySessionId = room?.sessionId;
