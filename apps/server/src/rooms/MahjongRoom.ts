@@ -15,6 +15,7 @@ import {
   isValidWinningShape,
   evaluatePatterns,
   settleHand,
+  isTenpai,
 } from '@mahjong/game-core';
 import type {
   TileDef,
@@ -46,6 +47,7 @@ export class MahjongRoom extends Room<GameState> {
   private scores: number[] = [25000, 25000, 25000, 25000];
   private reactionState: ReactionState | null = null;
   private handVersions: number[] = [0, 0, 0, 0];
+  private botTimers: Map<string, NodeJS.Timeout> = new Map();
 
   // Session <-> seat mapping
   private sessionToSeat: Map<string, number> = new Map();
@@ -142,7 +144,10 @@ export class MahjongRoom extends Room<GameState> {
   }
 
   onDispose() {
-    // Cleanup
+    for (const timer of this.botTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.botTimers.clear();
   }
 
   // ---------------------------------------------------------------------------
@@ -182,6 +187,11 @@ export class MahjongRoom extends Room<GameState> {
     this.handVersions[seat]++;
     const seatSchema = this.state.seats.get(String(seat));
     if (seatSchema) seatSchema.handVersion = this.handVersions[seat];
+  }
+
+  private isBot(seat: number): boolean {
+    const sessionId = this.seatToSession.get(seat);
+    return sessionId !== undefined && sessionId.startsWith('bot-');
   }
 
   private setPhase(phase: GamePhase) {
@@ -404,6 +414,10 @@ export class MahjongRoom extends Room<GameState> {
       if (activeClient) {
         activeClient.send('your-turn-draw', { seat: this.activeSeat });
       }
+
+      if (this.isBot(this.activeSeat)) {
+        this.scheduleBotAction(this.activeSeat);
+      }
     }
   }
 
@@ -474,29 +488,44 @@ export class MahjongRoom extends Room<GameState> {
     const tileIndex = concealed.findIndex((t) => t.id === data.tileId);
     if (tileIndex === -1) return;
 
-    // Remove from concealed
     const [discardedTile] = concealed.splice(tileIndex, 1);
-
-    // Add to river
+    this.incrementHandVersion(seat);
     this.seatRivers.get(seat)!.push(discardedTile);
 
-    // Check for reactions — who can claim this discard
+    if (this.seatIsRiichi(seat)) {
+      const seatSchema = this.state.seats.get(String(seat));
+      if (seatSchema) seatSchema.isRiichi = true;
+    }
+
+    this.checkAndOpenReactionWindow(seat, discardedTile);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shared reaction window (used by both human and bot discards)
+  // ---------------------------------------------------------------------------
+
+  private checkAndOpenReactionWindow(discardSeat: number, discardedTile: TileDef) {
     const eligibleSeats: number[] = [];
 
     for (let i = 0; i < 4; i++) {
-      if (i === seat) continue;
+      if (i === discardSeat) continue;
+      if (this.seatIsRiichi(i)) {
+        const testConcealed = [...(this.concealedTiles.get(i) ?? []), discardedTile];
+        if (isValidWinningShape(testConcealed, this.seatMelds.get(i)!.length)) {
+          eligibleSeats.push(i);
+        }
+        continue;
+      }
 
       const otherConcealed = this.concealedTiles.get(i)!;
       const otherMelds = this.seatMelds.get(i)!;
 
-      // Ron check: can this player win with the discarded tile?
       const testConcealed = [...otherConcealed, discardedTile];
       if (isValidWinningShape(testConcealed, otherMelds.length)) {
         eligibleSeats.push(i);
         continue;
       }
 
-      // Pon check: does this player have 2 matching tiles?
       const matchingCount = otherConcealed.filter(
         (t) => tileSortKey(t) === tileSortKey(discardedTile),
       ).length;
@@ -505,9 +534,8 @@ export class MahjongRoom extends Room<GameState> {
         continue;
       }
 
-      // Chi check: only the next seat (shimocha), simplified
       if (
-        i === (seat + 1) % 4 &&
+        i === (discardSeat + 1) % 4 &&
         RIICHI_PRESET.allowChi &&
         RIICHI_PRESET.allowOpenHand &&
         discardedTile.suit
@@ -520,10 +548,9 @@ export class MahjongRoom extends Room<GameState> {
     }
 
     if (eligibleSeats.length > 0) {
-      // Open reaction window
       this.reactionState = createReaction(
         `reaction-${Date.now()}`,
-        seat,
+        discardSeat,
         discardedTile,
         eligibleSeats,
         RIICHI_PRESET.reactionTimerSeconds * 1000,
@@ -531,7 +558,7 @@ export class MahjongRoom extends Room<GameState> {
 
       const targetPhase: GamePhase = {
         type: 'REACTION_WINDOW',
-        discardSeat: seat,
+        discardSeat,
         discardTile: discardedTile,
         pendingSeats: eligibleSeats,
       };
@@ -540,46 +567,294 @@ export class MahjongRoom extends Room<GameState> {
         this.setPhase(targetPhase);
         this.syncSchemaFromInternal();
 
-        // Notify eligible players of their reaction options
         for (const eligibleSeat of eligibleSeats) {
+          if (this.isBot(eligibleSeat)) continue;
+
           const eligibleClient = this.getClientForSeat(eligibleSeat);
           if (eligibleClient) {
             const seatActions: string[] = ['PASS_REACTION'];
-
             const testConcealed = [
               ...(this.concealedTiles.get(eligibleSeat) ?? []),
               discardedTile,
             ];
-            if (
-              isValidWinningShape(testConcealed, this.seatMelds.get(eligibleSeat)!.length)
-            ) {
+            if (isValidWinningShape(testConcealed, this.seatMelds.get(eligibleSeat)!.length)) {
               seatActions.push('DECLARE_WIN_RON');
             }
-
-            const matchCount = this.concealedTiles
+            const matchCount2 = this.concealedTiles
               .get(eligibleSeat)!
               .filter((t) => tileSortKey(t) === tileSortKey(discardedTile)).length;
-            if (matchCount >= 2) seatActions.push('CALL_PON');
-
-            if (
-              eligibleSeat === (seat + 1) % 4 &&
-              discardedTile.suit
-            ) {
+            if (matchCount2 >= 2) seatActions.push('CALL_PON');
+            if (eligibleSeat === (discardSeat + 1) % 4 && discardedTile.suit) {
               seatActions.push('CALL_CHI');
             }
-
             eligibleClient.send('reaction-options', {
-              discardSeat: seat,
+              discardSeat,
               discardTileId: discardedTile.id,
               actions: seatActions,
             });
           }
         }
+
+        // Schedule bot reactions
+        for (const eligibleSeat of eligibleSeats) {
+          if (this.isBot(eligibleSeat)) {
+            const delay = 300 + Math.random() * 500;
+            const timer = setTimeout(() => {
+              this.executeBotReaction(eligibleSeat);
+            }, delay);
+            this.botTimers.set(`reaction-${eligibleSeat}`, timer);
+          }
+        }
       }
     } else {
-      // No reactions — advance to next player
-      this.advanceToNextPlayer(seat);
+      this.advanceToNextPlayer(discardSeat);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bot AI
+  // ---------------------------------------------------------------------------
+
+  private scheduleBotAction(seat: number) {
+    if (!this.isBot(seat)) return;
+
+    const timerId = `bot-${seat}`;
+    const existing = this.botTimers.get(timerId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(() => {
+      this.botTimers.delete(timerId);
+      this.executeBotAction(seat);
+    }, 500 + Math.random() * 300);
+
+    this.botTimers.set(timerId, timer);
+  }
+
+  private executeBotAction(seat: number) {
+    if (!this.isBot(seat)) return;
+
+    switch (this.gamePhase.type) {
+      case 'TURN_DRAW':
+        if (seat === this.activeSeat) {
+          this.executeBotDraw(seat);
+        }
+        break;
+      case 'TURN_DECISION':
+        if (seat === this.activeSeat) {
+          this.executeBotDecision(seat);
+        }
+        break;
+      case 'REACTION_WINDOW':
+        this.executeBotReaction(seat);
+        break;
+    }
+  }
+
+  private executeBotDraw(seat: number) {
+    if (!this.wall) return;
+
+    const result = wallDrawTile(this.wall);
+    if (!result.tile) {
+      this.handleExhaustiveDraw();
+      return;
+    }
+
+    this.wall = result.wall;
+    const tile = result.tile;
+    this.concealedTiles.get(seat)!.push(tile);
+    this.incrementHandVersion(seat);
+
+    const concealed = this.concealedTiles.get(seat)!;
+    const melds = this.seatMelds.get(seat)!;
+
+    const actions: ActionType[] = ['DISCARD_TILE'];
+    if (isValidWinningShape([...concealed], melds.length)) {
+      actions.push('DECLARE_WIN_TSUMO');
+    }
+
+    if (this.canDeclareRiichi(seat)) {
+      actions.push('DECLARE_RIICHI');
+    }
+
+    this.setPhase({
+      type: 'TURN_DECISION',
+      activeSeat: seat,
+      legalActions: actions,
+    });
+    this.syncSchemaFromInternal();
+
+    // Bot always declares tsumo if possible
+    if (actions.includes('DECLARE_WIN_TSUMO')) {
+      setTimeout(() => {
+        this.handleBotTsumo(seat);
+      }, 300);
+      return;
+    }
+
+    this.scheduleBotAction(seat);
+  }
+
+  private executeBotDecision(seat: number) {
+    const concealed = this.concealedTiles.get(seat)!;
+
+    // Check if bot should declare riichi
+    const currentPhase = this.gamePhase;
+    if (
+      currentPhase.type === 'TURN_DECISION' &&
+      currentPhase.legalActions.includes('DECLARE_RIICHI') &&
+      !this.seatIsRiichi(seat)
+    ) {
+      this.applyRiichiDeclaration(seat);
+    }
+
+    const discardIndex = this.chooseBotDiscard(seat);
+    const discardedTile = concealed[discardIndex];
+    if (!discardedTile) return;
+
+    concealed.splice(discardIndex, 1);
+    this.incrementHandVersion(seat);
+    this.seatRivers.get(seat)!.push(discardedTile);
+
+    if (this.seatIsRiichi(seat)) {
+      const seatSchema = this.state.seats.get(String(seat));
+      if (seatSchema) seatSchema.isRiichi = true;
+    }
+
+    this.checkAndOpenReactionWindow(seat, discardedTile);
+  }
+
+  private chooseBotDiscard(seat: number): number {
+    const concealed = this.concealedTiles.get(seat)!;
+    if (concealed.length === 0) return 0;
+
+    const scores = concealed.map((tile, idx) => {
+      let score = 0;
+
+      const sameCount = concealed.filter(t => tileSortKey(t) === tileSortKey(tile)).length;
+      if (sameCount >= 2) score += 10;
+      if (sameCount >= 3) score += 10;
+
+      if (tile.suit && tile.rank) {
+        const hasAdjacent = concealed.some(t =>
+          t.suit === tile.suit &&
+          t.rank !== undefined &&
+          Math.abs(t.rank - tile.rank!) === 1
+        );
+        if (hasAdjacent) score += 5;
+
+        const hasNearby = concealed.some(t =>
+          t.suit === tile.suit &&
+          t.rank !== undefined &&
+          Math.abs(t.rank - tile.rank!) === 2
+        );
+        if (hasNearby) score += 2;
+
+        if (tile.rank >= 3 && tile.rank <= 7) score += 1;
+      } else {
+        if (sameCount === 1) score -= 2;
+      }
+
+      return score;
+    });
+
+    let minScore = Infinity;
+    let minIdx = 0;
+    for (let i = 0; i < scores.length; i++) {
+      if (scores[i] < minScore) {
+        minScore = scores[i];
+        minIdx = i;
+      }
+    }
+    return minIdx;
+  }
+
+  private handleBotTsumo(seat: number) {
+    if (this.gamePhase.type !== 'TURN_DECISION') return;
+
+    const concealed = this.concealedTiles.get(seat)!;
+    const melds = this.seatMelds.get(seat)!;
+
+    if (!isValidWinningShape([...concealed], melds.length)) return;
+
+    const seatWind = MahjongRoom.SEAT_WINDS[seat];
+    const patterns = evaluatePatterns(concealed, melds, 'tsumo', seatWind, this.roundWind);
+    if (patterns.length === 0) return;
+
+    const isDealer = seat === this.dealerSeat;
+    const result = settleHand(seat, 'tsumo', undefined, patterns, 30, 4, isDealer);
+    this.applyWinResult(seat, 'tsumo', result);
+  }
+
+  private executeBotReaction(seat: number) {
+    if (this.gamePhase.type !== 'REACTION_WINDOW' || !this.reactionState) return;
+    if (!this.reactionState.eligibleSeats.includes(seat)) return;
+    if (this.reactionState.responses[seat] !== null) return;
+
+    const discardedTile = this.reactionState.discardTile;
+    const otherConcealed = this.concealedTiles.get(seat)!;
+    const otherMelds = this.seatMelds.get(seat)!;
+
+    // Always declare ron if possible
+    const testConcealed = [...otherConcealed, discardedTile];
+    if (isValidWinningShape(testConcealed, otherMelds.length)) {
+      const seatWind = MahjongRoom.SEAT_WINDS[seat];
+      const patterns = evaluatePatterns(testConcealed, otherMelds, 'ron', seatWind, this.roundWind);
+      if (patterns.length > 0) {
+        this.reactionState = submitResponse(this.reactionState, seat, { type: 'ron' });
+        this.resolveReaction();
+        return;
+      }
+    }
+
+    // 30% chance to call pon
+    const matchCount = otherConcealed.filter(
+      (t) => tileSortKey(t) === tileSortKey(discardedTile),
+    ).length;
+    if (matchCount >= 2 && Math.random() < 0.3 && !this.seatIsRiichi(seat)) {
+      this.reactionState = submitResponse(this.reactionState, seat, { type: 'pon' });
+      this.checkReactionResolution();
+      return;
+    }
+
+    // Pass
+    this.reactionState = submitResponse(this.reactionState, seat, { type: 'pass' });
+    const seatSchema = this.state.seats.get(String(seat));
+    if (seatSchema) seatSchema.hasPassedReaction = true;
+    this.checkReactionResolution();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Riichi helpers
+  // ---------------------------------------------------------------------------
+
+  private seatIsRiichi(seat: number): boolean {
+    return this.state.seats.get(String(seat))?.isRiichi ?? false;
+  }
+
+  private canDeclareRiichi(seat: number): boolean {
+    if (this.seatIsRiichi(seat)) return false;
+    if (this.seatMelds.get(seat)!.some(m => !m.isConcealed)) return false;
+
+    const concealed = this.concealedTiles.get(seat)!;
+    const meldCount = this.seatMelds.get(seat)!.length;
+
+    for (let i = 0; i < concealed.length; i++) {
+      const remaining = concealed.filter((_, idx) => idx !== i);
+      if (isTenpai(remaining, meldCount)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private applyRiichiDeclaration(seat: number) {
+    this.scores[seat] -= 1000;
+    this.riichiSticks++;
+
+    const seatSchema = this.state.seats.get(String(seat));
+    if (seatSchema) seatSchema.isRiichi = true;
+
+    this.syncSchemaFromInternal();
   }
 
   // ---------------------------------------------------------------------------
@@ -856,6 +1131,10 @@ export class MahjongRoom extends Room<GameState> {
         handVersion: this.handVersions[callerSeat],
       });
     }
+
+    if (this.isBot(callerSeat)) {
+      this.scheduleBotAction(callerSeat);
+    }
   }
 
   private applyChi(
@@ -908,6 +1187,10 @@ export class MahjongRoom extends Room<GameState> {
         handVersion: this.handVersions[callerSeat],
       });
     }
+
+    if (this.isBot(callerSeat)) {
+      this.scheduleBotAction(callerSeat);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -936,6 +1219,10 @@ export class MahjongRoom extends Room<GameState> {
       const nextClient = this.getClientForSeat(nextSeat);
       if (nextClient) {
         nextClient.send('your-turn-draw', { seat: nextSeat });
+      }
+
+      if (this.isBot(nextSeat)) {
+        this.scheduleBotAction(nextSeat);
       }
     }
   }
