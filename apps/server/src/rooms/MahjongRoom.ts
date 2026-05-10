@@ -45,6 +45,7 @@ export class MahjongRoom extends Room<GameState> {
   private riichiSticks = 0;
   private scores: number[] = [25000, 25000, 25000, 25000];
   private reactionState: ReactionState | null = null;
+  private handVersions: number[] = [0, 0, 0, 0];
 
   // Session <-> seat mapping
   private sessionToSeat: Map<string, number> = new Map();
@@ -98,6 +99,10 @@ export class MahjongRoom extends Room<GameState> {
 
     this.onMessage('declare-win-tsumo', (client) => {
       this.handleDeclareWinTsumo(client);
+    });
+
+    this.onMessage('request-hand', (client) => {
+      this.handleRequestHand(client);
     });
   }
 
@@ -154,6 +159,31 @@ export class MahjongRoom extends Room<GameState> {
     return this.clients.find((c) => c.sessionId === sessionId) ?? null;
   }
 
+  private handleRequestHand(client: Client) {
+    const seat = this.sessionToSeat.get(client.sessionId);
+    if (seat === undefined) return;
+    if (this.gamePhase.type === 'LOBBY' || this.gamePhase.type === 'DEALING') return;
+
+    const concealed = this.concealedTiles.get(seat) ?? [];
+    const melds = this.seatMelds.get(seat) ?? [];
+
+    client.send('hand-state', {
+      tiles: concealed.map((t) => t.id),
+      melds: melds.map((m) => ({
+        type: m.type,
+        tileIds: m.tiles.map((t) => t.id),
+        isConcealed: m.isConcealed,
+      })),
+      handVersion: this.handVersions[seat],
+    });
+  }
+
+  private incrementHandVersion(seat: number) {
+    this.handVersions[seat]++;
+    const seatSchema = this.state.seats.get(String(seat));
+    if (seatSchema) seatSchema.handVersion = this.handVersions[seat];
+  }
+
   private setPhase(phase: GamePhase) {
     this.gamePhase = phase;
     this.state.phase = phase.type;
@@ -198,6 +228,7 @@ export class MahjongRoom extends Room<GameState> {
       seatSchema.meldTypes = (this.seatMelds.get(i) ?? []).map((m) => m.type).join(',');
       seatSchema.riverTileIds = (this.seatRivers.get(i) ?? []).map((t) => t.id).join(',');
       seatSchema.score = this.scores[i];
+      seatSchema.handVersion = this.handVersions[i];
     }
   }
 
@@ -314,6 +345,7 @@ export class MahjongRoom extends Room<GameState> {
     this.seatMelds.clear();
     this.seatRivers.clear();
     this.reactionState = null;
+    this.handVersions = [0, 0, 0, 0];
 
     for (let i = 0; i < 4; i++) {
       this.concealedTiles.set(i, []);
@@ -348,10 +380,12 @@ export class MahjongRoom extends Room<GameState> {
 
     // Send each player their concealed tiles privately
     for (let i = 0; i < 4; i++) {
+      this.incrementHandVersion(i);
       const client = this.getClientForSeat(i);
       if (client) {
         client.send('deal', {
           tiles: this.concealedTiles.get(i)!.map((t) => t.id),
+          handVersion: this.handVersions[i],
         });
       }
     }
@@ -396,6 +430,7 @@ export class MahjongRoom extends Room<GameState> {
 
     // Add to concealed
     this.concealedTiles.get(seat)!.push(tile);
+    this.incrementHandVersion(seat);
 
     // Calculate legal actions for this seat
     const actions: ActionType[] = ['DISCARD_TILE'];
@@ -419,7 +454,7 @@ export class MahjongRoom extends Room<GameState> {
       this.syncSchemaFromInternal();
 
       // Send drawn tile to player privately
-      client.send('tile-drawn', { tileId: tile.id });
+      client.send('tile-drawn', { tileId: tile.id, handVersion: this.handVersions[seat] });
 
       // Send legal actions
       client.send('legal-actions', { actions });
@@ -796,6 +831,7 @@ export class MahjongRoom extends Room<GameState> {
       isConcealed: false,
     };
     this.seatMelds.get(callerSeat)!.push(meld);
+    this.incrementHandVersion(callerSeat);
 
     // Remove the called tile from the discarder's river
     const river = this.seatRivers.get(discardSeat)!;
@@ -817,6 +853,7 @@ export class MahjongRoom extends Room<GameState> {
       callerClient.send('legal-actions', { actions: ['DISCARD_TILE'] });
       callerClient.send('meld-applied', {
         meld: { type: meld.type, tileIds: meld.tiles.map((t) => t.id) },
+        handVersion: this.handVersions[callerSeat],
       });
     }
   }
@@ -847,6 +884,7 @@ export class MahjongRoom extends Room<GameState> {
       isConcealed: false,
     };
     this.seatMelds.get(callerSeat)!.push(meld);
+    this.incrementHandVersion(callerSeat);
 
     // Remove from discarder's river
     const river = this.seatRivers.get(discardSeat)!;
@@ -867,6 +905,7 @@ export class MahjongRoom extends Room<GameState> {
       callerClient.send('legal-actions', { actions: ['DISCARD_TILE'] });
       callerClient.send('meld-applied', {
         meld: { type: meld.type, tileIds: meld.tiles.map((t) => t.id) },
+        handVersion: this.handVersions[callerSeat],
       });
     }
   }

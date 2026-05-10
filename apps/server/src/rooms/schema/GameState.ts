@@ -18,6 +18,7 @@ export class SeatRoundSchema extends Schema {
   @type('string') riverTileIds: string = '';
   @type('int32') score: number = 25000;
   @type('boolean') hasPassedReaction: boolean = false;
+  @type('uint8') handVersion: number = 0;
 }
 
 export class GameState extends Schema {
