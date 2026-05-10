@@ -13,17 +13,19 @@ export function LobbyScreen() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const displayName = searchParams.get('name') || '';
-  const { room, state, error, join } = useGameClient(roomCode || '');
+  const roomId = searchParams.get('roomId') || '';
+  const { room, state, error, join } = useGameClient(roomId);
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
-    if (roomCode && displayName && !joined) {
+    if (roomId && displayName && !joined) {
       join(displayName);
       setJoined(true);
     }
-  }, [roomCode, displayName, join, joined]);
+  }, [roomId, displayName, join, joined]);
 
   const players: any[] = state?.players ? Array.from(state.players.values()) : [];
+  const mySessionId = room?.sessionId;
   const isHost = players.some((p: any) => p.isHost);
   const allReady = players.length === 4 && players.every((p: any) => p.isReady);
 
@@ -45,7 +47,7 @@ export function LobbyScreen() {
 
       {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem' }}>{error}</div>}
 
-      <SeatMap players={players} onChooseSeat={(idx) => room?.send('choose-seat', { seatIndex: idx })} />
+      <SeatMap players={players} myPlayerId={mySessionId} onChooseSeat={(idx) => room?.send('choose-seat', { seatIndex: idx })} />
 
       <div style={{ marginTop: '1.5rem' }}>
         <PlayerList players={players} />

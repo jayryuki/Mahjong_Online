@@ -18,7 +18,8 @@ export function JoinRoomScreen() {
         setError('Room not found');
         return;
       }
-      navigate(`/lobby/${roomCode.toUpperCase()}?name=${encodeURIComponent(displayName)}`);
+      const roomData = await res.json();
+      navigate(`/lobby/${roomCode.toUpperCase()}?roomId=${roomData.roomId}&name=${encodeURIComponent(displayName)}`);
     } catch {
       setError('Failed to connect');
     }

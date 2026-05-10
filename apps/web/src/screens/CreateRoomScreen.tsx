@@ -24,7 +24,7 @@ export function CreateRoomScreen() {
         body: JSON.stringify({ displayName, preset: selectedPreset }),
       });
       const data = await res.json();
-      navigate(`/lobby/${data.roomCode}`);
+      navigate(`/lobby/${data.roomCode}?roomId=${data.roomId}&name=${encodeURIComponent(displayName)}`);
     } catch {
       // Error handling for Phase 2
     }
