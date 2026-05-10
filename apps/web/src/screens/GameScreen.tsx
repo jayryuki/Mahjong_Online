@@ -87,6 +87,7 @@ export function GameScreen() {
 
   // My seat index
   const [mySeat, setMySeat] = useState<number>(0);
+  const mySeatRef = useRef<number>(0);
 
   // Hand tiles (parsed from server messages)
   const [handTiles, setHandTiles] = useState<TileDef[]>([]);
@@ -140,6 +141,7 @@ export function GameScreen() {
       const mySeatIdx = newSeatMap.get(mySessionId);
       if (mySeatIdx !== undefined) {
         setMySeat(mySeatIdx);
+        mySeatRef.current = mySeatIdx;
       }
     };
 
@@ -163,13 +165,30 @@ export function GameScreen() {
 
     const unsubs: Array<() => void> = [];
 
-    const onHandState = (data: { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }>; handVersion: number }) => {
+    const onHandState = (data: { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }>; handVersion: number; phase?: string; activeSeat?: number; legalActions?: string[] }) => {
       const tiles = data.tiles.map(parseTileId);
       tiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
       setHandTiles(tiles);
       setHandVersion(data.handVersion);
       setHandResult(null);
-      setStatusMessage('Hand synced.');
+
+      // Reconstruct turn state from server response
+      if (data.phase && data.legalActions) {
+        if (data.phase === 'TURN_DRAW' && data.activeSeat === mySeatRef.current) {
+          setLegalActions(data.legalActions);
+          setStatusMessage('Your turn - Draw a tile!');
+        } else if (data.phase === 'TURN_DECISION' && data.activeSeat === mySeatRef.current) {
+          setLegalActions(data.legalActions);
+          setStatusMessage('Tile drawn! Choose an action.');
+        } else if (data.phase === 'REACTION_WINDOW') {
+          setReactionOptions(data.legalActions);
+          setStatusMessage('A tile was discarded. You can react!');
+        } else {
+          setStatusMessage(`Seat ${data.activeSeat ?? '?'} is playing...`);
+        }
+      } else {
+        setStatusMessage('Hand synced.');
+      }
     };
 
     const onDeal = (data: { tiles: string[]; handVersion?: number }) => {
@@ -182,7 +201,7 @@ export function GameScreen() {
     };
 
     const onYourTurnDraw = (data: { seat: number }) => {
-      if (data.seat === mySeat) {
+      if (data.seat === mySeatRef.current) {
         setStatusMessage('Your turn - Draw a tile!');
         setLegalActions(['DRAW_TILE']);
       } else {
@@ -256,7 +275,7 @@ export function GameScreen() {
         unsub();
       }
     };
-  }, [room, mySeat]);
+  }, [room]);
 
   // Handle actions from ActionPrompt
   const handleAction = useCallback((action: string) => {

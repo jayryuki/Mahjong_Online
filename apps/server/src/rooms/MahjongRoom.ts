@@ -180,6 +180,31 @@ export class MahjongRoom extends Room<GameState> {
     const concealed = this.concealedTiles.get(seat) ?? [];
     const melds = this.seatMelds.get(seat) ?? [];
 
+    // Include current phase info so client can reconstruct its available actions
+    let activeSeat = this.activeSeat;
+    let legalActions: string[] = [];
+
+    if (this.gamePhase.type === 'TURN_DRAW' && seat === this.activeSeat) {
+      legalActions = ['DRAW_TILE'];
+    } else if (this.gamePhase.type === 'TURN_DECISION' && seat === this.activeSeat) {
+      legalActions = this.gamePhase.legalActions;
+    } else if (this.gamePhase.type === 'REACTION_WINDOW' && this.reactionState) {
+      // Re-derive this seat's reaction options
+      if (this.reactionState.eligibleSeats.includes(seat) && this.reactionState.responses[seat] === null) {
+        const discardedTile = this.reactionState.discardTile;
+        legalActions = ['PASS_REACTION'];
+        const testConcealed = [...concealed, discardedTile];
+        if (isValidWinningShape(testConcealed, melds.length)) {
+          legalActions.push('DECLARE_WIN_RON');
+        }
+        const matchCount = concealed.filter((t) => tileSortKey(t) === tileSortKey(discardedTile)).length;
+        if (matchCount >= 2) legalActions.push('CALL_PON');
+        if (this.reactionState.discardSeat === (seat + 3) % 4 && discardedTile.suit) {
+          legalActions.push('CALL_CHI');
+        }
+      }
+    }
+
     client.send('hand-state', {
       tiles: concealed.map((t) => t.id),
       melds: melds.map((m) => ({
@@ -188,6 +213,9 @@ export class MahjongRoom extends Room<GameState> {
         isConcealed: m.isConcealed,
       })),
       handVersion: this.handVersions[seat],
+      phase: this.gamePhase.type,
+      activeSeat,
+      legalActions,
     });
   }
 
