@@ -15,6 +15,7 @@ export class SeatRoundSchema extends Schema {
   @type('boolean') isRiichi: boolean = false;
   @type('uint8') meldCount: number = 0;
   @type('string') meldTypes: string = '';
+  @type('string') meldTileIds: string = '';
   @type('string') riverTileIds: string = '';
   @type('int32') score: number = 25000;
   @type('boolean') hasPassedReaction: boolean = false;

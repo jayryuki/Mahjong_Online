@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TableLayout } from '../components/table/TableLayout.js';
 import { HandArea } from '../components/table/HandArea.js';
-import { RiverArea } from '../components/table/RiverArea.js';
-import { MeldArea } from '../components/table/MeldArea.js';
 import { ActionPrompt } from '../components/actions/ActionPrompt.js';
 import { Button } from '../components/common/Button.js';
 import { getRoom, getMySessionId } from '../lib/gameContext.js';
@@ -73,6 +71,7 @@ interface SeatData {
   isRiichi: boolean;
   meldCount: number;
   meldTypes: string;
+  meldTileIds: string;
   riverTileIds: string;
   score: number;
   hasPassedReaction: boolean;
@@ -345,12 +344,21 @@ export function GameScreen() {
       }));
 
       // Parse melds
+      const meldTileIdsStr: string = seatData?.meldTileIds ?? '';
+      const meldGroups = meldTileIdsStr ? meldTileIdsStr.split(',').filter(Boolean) : [];
+      const melds = meldGroups.map((group) => {
+        const tileIds = group.split('|');
+        return {
+          type: '',
+          tiles: tileIds.map(id => ({ id })),
+          isConcealed: false,
+        };
+      });
+
       const meldTypes: string[] = seatData?.meldTypes ? seatData.meldTypes.split(',').filter(Boolean) : [];
-      const melds = meldTypes.map((type) => ({
-        type,
-        tiles: [] as any[],
-        isConcealed: false,
-      }));
+      for (let j = 0; j < melds.length; j++) {
+        if (meldTypes[j]) melds[j].type = meldTypes[j];
+      }
 
       return {
         seatIndex: i,
@@ -383,6 +391,7 @@ export function GameScreen() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <TableLayout
         seats={seatDisplays}
+        mySeat={mySeat}
         activeSeat={roomState?.activeSeat ?? 0}
         dealerSeat={roomState?.dealerSeat ?? 0}
         roundWind={roomState?.roundWind ?? 'east'}
@@ -390,25 +399,12 @@ export function GameScreen() {
         honba={roomState?.honba ?? 0}
         riichiSticks={roomState?.riichiSticks ?? 0}
         wallRemaining={roomState?.wallRemaining ?? 0}
+        doraIndicatorIds={roomState?.doraIndicators ? roomState.doraIndicators.split(',').filter(Boolean) : []}
       >
         {/* My hand area */}
         <div style={{ position: 'absolute', bottom: '4rem', left: '50%', transform: 'translateX(-50%)' }}>
           <HandArea tiles={handTiles} drawnTileId={drawnTileId} onDiscard={handleDiscard} />
         </div>
-
-        {/* My melds */}
-        {seatDisplays[mySeat] && seatDisplays[mySeat].melds.length > 0 && (
-          <div style={{ position: 'absolute', bottom: '10rem', left: '50%', transform: 'translateX(-50%)' }}>
-            <MeldArea melds={seatDisplays[mySeat].melds} />
-          </div>
-        )}
-
-        {/* Opponent river (top player for now) */}
-        {seatDisplays[(mySeat + 2) % 4] && seatDisplays[(mySeat + 2) % 4].river.length > 0 && (
-          <div style={{ position: 'absolute', top: '5rem', left: '50%', transform: 'translateX(-50%)' }}>
-            <RiverArea entries={seatDisplays[(mySeat + 2) % 4].river} />
-          </div>
-        )}
       </TableLayout>
 
       {/* Status message */}

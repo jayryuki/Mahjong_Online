@@ -244,6 +244,7 @@ export class MahjongRoom extends Room<GameState> {
       seatSchema.concealedCount = this.concealedTiles.get(i)?.length ?? 0;
       seatSchema.meldCount = this.seatMelds.get(i)?.length ?? 0;
       seatSchema.meldTypes = (this.seatMelds.get(i) ?? []).map((m) => m.type).join(',');
+      seatSchema.meldTileIds = (this.seatMelds.get(i) ?? []).map((m) => m.tiles.map((t) => t.id).join('|')).join(',');
       seatSchema.riverTileIds = (this.seatRivers.get(i) ?? []).map((t) => t.id).join(',');
       seatSchema.score = this.scores[i];
       seatSchema.handVersion = this.handVersions[i];

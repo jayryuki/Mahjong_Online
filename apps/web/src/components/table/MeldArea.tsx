@@ -1,4 +1,21 @@
 import React from 'react';
+import { ManTile, PinTile, SouTile, HonorTile } from '@mahjong/ui';
+import { TileDef } from '@mahjong/game-core';
+
+function parseTileId(id: string): TileDef {
+  const parts = id.split('-');
+  const suitNames = ['man', 'pin', 'sou'];
+  const windNames = ['east', 'south', 'west', 'north'];
+  const dragonNames = ['haku', 'hatsu', 'chun'];
+  const honorNames = [...windNames, ...dragonNames];
+
+  if (suitNames.includes(parts[0])) {
+    return { id, suit: parts[0] as 'man' | 'pin' | 'sou', rank: parseInt(parts[1], 10), isFlower: false };
+  } else if (honorNames.includes(parts[0])) {
+    return { id, honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon', honorName: parts[0] as any, isFlower: false };
+  }
+  return { id, isFlower: false };
+}
 
 interface Meld {
   type: string;
@@ -10,19 +27,35 @@ interface MeldAreaProps {
   melds: Meld[];
 }
 
+function renderSmallTile(tile: TileDef) {
+  const props = { width: 24, height: 32 };
+  if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...props} />;
+  if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...props} />;
+  if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...props} />;
+  if (tile.honorName) return <HonorTile honorName={tile.honorName} {...props} />;
+  return null;
+}
+
 export function MeldArea({ melds }: MeldAreaProps) {
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', padding: '0.25rem' }}>
+    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
       {melds.map((meld, i) => (
         <div key={i} style={{
-          padding: '0.25rem 0.5rem',
+          display: 'flex',
+          gap: '1px',
+          padding: '2px',
           borderRadius: '4px',
           background: 'var(--surface-panel)',
-          fontSize: '0.6875rem',
-          color: 'var(--text-secondary)',
           border: '1px solid var(--border-subtle)',
         }}>
-          {meld.type} ({meld.tiles.length})
+          {(!meld.tiles || meld.tiles.length === 0) && (
+            <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', padding: '0 0.25rem' }}>{meld.type}</span>
+          )}
+          {meld.tiles && meld.tiles.length > 0 && meld.tiles.map((t: any, j: number) => {
+            const tileId = typeof t === 'string' ? t : t.id;
+            const tileDef = parseTileId(tileId);
+            return <div key={j}>{renderSmallTile(tileDef)}</div>;
+          })}
         </div>
       ))}
     </div>
