@@ -75,7 +75,10 @@ function isReactionResolved(reaction: unknown): boolean {
 
 function getReactionResponse(reaction: unknown, seatIndex: number): unknown {
   if (reaction && typeof reaction === 'object' && 'responses' in reaction) {
-    return (reaction as any).responses?.[seatIndex] ?? undefined;
+    if (seatIndex in (reaction as any).responses) {
+      return (reaction as any).responses[seatIndex];
+    }
+    return undefined;
   }
   return undefined;
 }
