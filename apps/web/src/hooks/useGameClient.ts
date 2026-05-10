@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { colyseusClient } from '../lib/colyseus.js';
 
 export function useGameClient(roomId: string) {
@@ -28,12 +28,15 @@ export function useGameClient(roomId: string) {
     setState(null);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      roomRef.current?.leave();
-      roomRef.current = null;
-    };
+  // Detach the room from this hook's lifecycle without leaving it.
+  // Used when navigating from lobby to game screen so the room persists.
+  const detachRoom = useCallback(() => {
+    roomRef.current = null;
   }, []);
 
-  return { room, state, error, join, leave };
+  // NOTE: We intentionally do NOT auto-leave on unmount because the room
+  // reference is shared via gameContext. The room should only be left
+  // explicitly when the user chooses to leave the game.
+
+  return { room, state, error, join, leave, detachRoom };
 }

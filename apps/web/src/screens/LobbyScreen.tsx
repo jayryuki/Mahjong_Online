@@ -7,6 +7,7 @@ import { SeatMap } from '../components/lobby/SeatMap.js';
 import { PlayerList } from '../components/lobby/PlayerList.js';
 import { RulesSummary } from '../components/lobby/RulesSummary.js';
 import { useGameClient } from '../hooks/useGameClient.js';
+import { setRoom } from '../lib/gameContext.js';
 
 export function LobbyScreen() {
   const { roomCode } = useParams<{ roomCode: string }>();
@@ -14,8 +15,9 @@ export function LobbyScreen() {
   const navigate = useNavigate();
   const displayName = searchParams.get('name') || '';
   const roomId = searchParams.get('roomId') || '';
-  const { room, state, error, join } = useGameClient(roomId);
+  const { room, state, error, join, detachRoom } = useGameClient(roomId);
   const joinedRef = useRef(false);
+  const navigatedRef = useRef(false);
 
   useEffect(() => {
     if (roomId && displayName && !joinedRef.current) {
@@ -24,10 +26,28 @@ export function LobbyScreen() {
     }
   }, [roomId, displayName, join]);
 
+  // Store room reference in shared context whenever room changes
+  useEffect(() => {
+    if (room) {
+      setRoom(room, room.sessionId);
+    }
+  }, [room]);
+
+  // Navigate to game screen when phase changes from LOBBY
+  useEffect(() => {
+    if (state?.phase && state.phase !== 'LOBBY' && !navigatedRef.current) {
+      navigatedRef.current = true;
+      // Detach room from hook lifecycle so it persists across navigation
+      detachRoom();
+      navigate(`/game/${roomCode}`);
+    }
+  }, [state?.phase, roomCode, navigate, detachRoom]);
+
   const players: any[] = state?.players ? Array.from(state.players.values()) : [];
   const mySessionId = room?.sessionId;
-  const isHost = players.some((p: any) => p.isHost);
-  const allReady = players.length === 4 && players.every((p: any) => p.isReady);
+  const currentPlayer = players.find((p: any) => p.playerId === mySessionId);
+  const isHost = currentPlayer?.isHost ?? false;
+  const allReady = players.length > 0 && players.every((p: any) => p.isReady);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '2rem', maxWidth: '640px', margin: '0 auto' }}>

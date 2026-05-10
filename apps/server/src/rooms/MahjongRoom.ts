@@ -106,7 +106,8 @@ export class MahjongRoom extends Room<GameState> {
     player.playerId = client.sessionId;
     player.displayName = options.displayName || 'Player';
     player.isConnected = true;
-    player.isHost = client.sessionId === this.state.hostPlayerId;
+    // First player to join is the host
+    player.isHost = this.state.players.size === 0;
     this.state.players.set(client.sessionId, player);
   }
 
@@ -246,15 +247,33 @@ export class MahjongRoom extends Room<GameState> {
   // ---------------------------------------------------------------------------
 
   private startMatch() {
-    // Validate all seats filled and ready
+    // Validate: need at least 1 player, all seated and ready
     const players = Array.from(this.state.players.values());
-    if (players.length !== 4) return;
+    if (players.length < 1) return;
 
     const allSeated = players.every((p) => this.sessionToSeat.has(p.playerId));
     if (!allSeated) return;
 
     const allReady = players.every((p) => p.isReady);
     if (!allReady) return;
+
+    // Fill empty seats with bot placeholders
+    const occupiedSeats = new Set(players.map((p) => this.sessionToSeat.get(p.playerId)!));
+    for (let i = 0; i < 4; i++) {
+      if (!occupiedSeats.has(i)) {
+        const botId = `bot-${i}`;
+        const player = new PlayerSchema();
+        player.playerId = botId;
+        player.displayName = `Bot ${i + 1}`;
+        player.isConnected = true;
+        player.isReady = true;
+        player.isHost = false;
+        player.seatIndex = i;
+        this.state.players.set(botId, player);
+        this.sessionToSeat.set(botId, i);
+        this.seatToSession.set(i, botId);
+      }
+    }
 
     this.state.status = 'in-progress';
 
