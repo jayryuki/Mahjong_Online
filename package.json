@@ -1,0 +1,10 @@
+{
+  "name": "mahjong",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "dev:web": "pnpm --filter @mahjong/web dev",
+    "dev:server": "pnpm --filter @mahjong/server dev"
+  }
+}
