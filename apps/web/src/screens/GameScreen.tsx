@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { TableLayout } from '../components/table/TableLayout.js';
 import { HandArea } from '../components/table/HandArea.js';
 import { ActionPrompt } from '../components/actions/ActionPrompt.js';
 import { Button } from '../components/common/Button.js';
-import { getRoom, getMySessionId } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
 
 // Parse a tile ID string (e.g. "man-1-0", "pin-5-3", "east-0") into a TileDef object
@@ -77,13 +76,14 @@ interface SeatData {
   hasPassedReaction: boolean;
 }
 
-export function GameScreen() {
-  const { roomCode } = useParams<{ roomCode: string }>();
-  const navigate = useNavigate();
+interface GameScreenProps {
+  room: any;
+  mySessionId: string;
+  roomCode: string;
+}
 
-  // Room reference from shared context (set by lobby before navigation)
-  const room = getRoom();
-  const mySessionId = getMySessionId();
+export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
+  const navigate = useNavigate();
 
   // My seat index
   const [mySeat, setMySeat] = useState<number>(0);
@@ -114,7 +114,7 @@ export function GameScreen() {
   const [handVersion, setHandVersion] = useState<number>(0);
 
   // Status message
-  const [statusMessage, setStatusMessage] = useState<string>('Waiting for game to start...');
+  const [statusMessage, setStatusMessage] = useState<string>('Connecting...');
 
   // Track seat mapping from state
   const seatMapRef = useRef<Map<string, number>>(new Map());
@@ -396,12 +396,12 @@ export function GameScreen() {
   const seatDisplays = buildSeatDisplays();
   const allActions = [...legalActions, ...reactionOptions];
 
-  // No room - redirect to lobby
+  // No room - shouldn't happen when rendered from lobby
   if (!room) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
         <p style={{ color: 'var(--text-secondary)' }}>Not connected to a room.</p>
-        <Button onClick={() => navigate(`/lobby/${roomCode}`)}>Back to Lobby</Button>
+        <Button onClick={() => navigate('/')}>Back to Home</Button>
       </div>
     );
   }

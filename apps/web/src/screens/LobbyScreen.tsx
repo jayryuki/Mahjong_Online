@@ -8,6 +8,7 @@ import { PlayerList } from '../components/lobby/PlayerList.js';
 import { RulesSummary } from '../components/lobby/RulesSummary.js';
 import { useGameClient } from '../hooks/useGameClient.js';
 import { setRoom } from '../lib/gameContext.js';
+import { GameScreen } from './GameScreen.js';
 
 export function LobbyScreen() {
   const { roomCode } = useParams<{ roomCode: string }>();
@@ -33,15 +34,10 @@ export function LobbyScreen() {
     }
   }, [room]);
 
-  // Navigate to game screen when phase changes from LOBBY
-  useEffect(() => {
-    if (state?.phase && state.phase !== 'LOBBY' && !navigatedRef.current) {
-      navigatedRef.current = true;
-      // Detach room from hook lifecycle so it persists across navigation
-      detachRoom();
-      navigate(`/game/${roomCode}`);
-    }
-  }, [state?.phase, roomCode, navigate, detachRoom]);
+  // When game starts, render GameScreen in-place (same room connection)
+  if (state?.phase && state?.phase !== 'LOBBY' && room) {
+    return <GameScreen room={room} mySessionId={room.sessionId} roomCode={roomCode ?? ''} />;
+  }
 
   const players: any[] = state?.players ? Array.from(state.players.values()) : [];
   const mySessionId = room?.sessionId;
