@@ -108,6 +108,18 @@ export class MahjongRoom extends Room<GameState> {
     player.isConnected = true;
     // First player to join is the host
     player.isHost = this.state.players.size === 0;
+
+    // Auto-assign the next available seat
+    const occupiedSeats = new Set(Array.from(this.sessionToSeat.values()));
+    for (let i = 0; i < 4; i++) {
+      if (!occupiedSeats.has(i)) {
+        player.seatIndex = i;
+        this.sessionToSeat.set(client.sessionId, i);
+        this.seatToSession.set(i, client.sessionId);
+        break;
+      }
+    }
+
     this.state.players.set(client.sessionId, player);
   }
 
