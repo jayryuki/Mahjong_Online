@@ -4,6 +4,7 @@ import { River } from './river.js';
 import { PlayerScoreState } from './player.js';
 import { WallState, DeadWallState, RoundSeedInfo } from './wall.js';
 import { ReactionState } from '../engine/reaction.js';
+import { HandResult } from '../scoring/settlement.js';
 
 export interface DoraState {
   indicators: TileDef[];
@@ -29,8 +30,7 @@ export interface RoundSummary {
   handNumber: number;
   honba: number;
   riichiSticks: number;
-  // Placeholder for HandResult — will be defined in scoring/settlement.ts
-  result: unknown;
+  result: HandResult | null;
   endReason: 'win' | 'exhaustive-draw';
   scoreChanges: PlayerScoreState[];
 }

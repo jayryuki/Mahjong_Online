@@ -5,3 +5,7 @@ export * from './engine/actions.js';
 export * from './engine/reaction.js';
 export * from './engine/fsm.js';
 export * from './engine/validators.js';
+export * from './scoring/validator.js';
+export * from './scoring/evaluator.js';
+export * from './scoring/calculator.js';
+export * from './scoring/settlement.js';

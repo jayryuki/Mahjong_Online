@@ -2,11 +2,9 @@ import { PlayerState, SpectatorState, ScoreTrack, PlayerScoreState } from './pla
 import { RoundState, RoundSummary } from './round.js';
 import { TileDef } from './tile.js';
 import { RulesPreset } from '../rules/preset.js';
+import { HandResult } from '../scoring/settlement.js';
 
 export type { RulesPreset };
-
-// Placeholder for HandResult — will be defined in scoring/settlement.ts
-export type HandResult = unknown;
 
 import type { ActionType } from '../engine/actions.js';
 
