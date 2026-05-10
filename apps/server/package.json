@@ -1,0 +1,23 @@
+{
+  "name": "@mahjong/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@colyseus/core": "^0.16.0",
+    "@colyseus/schema": "^3.0.0",
+    "@colyseus/ws-transport": "^0.16.0",
+    "@mahjong/game-core": "workspace:*",
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}
