@@ -1,8 +1,21 @@
 import React from 'react';
-import { TileBack } from '@mahjong/ui';
-import { RiverArea } from './RiverArea.js';
-import { MeldArea } from './MeldArea.js';
+import { ManTile, PinTile, SouTile, HonorTile } from '@mahjong/ui';
 import { TileDef } from '@mahjong/game-core';
+
+function parseTileId(id: string): TileDef {
+  const parts = id.split('-');
+  const suitNames = ['man', 'pin', 'sou'];
+  const windNames = ['east', 'south', 'west', 'north'];
+  const dragonNames = ['haku', 'hatsu', 'chun'];
+  const honorNames = [...windNames, ...dragonNames];
+
+  if (suitNames.includes(parts[0])) {
+    return { id, suit: parts[0] as 'man' | 'pin' | 'sou', rank: parseInt(parts[1], 10), isFlower: false };
+  } else if (honorNames.includes(parts[0])) {
+    return { id, honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon', honorName: parts[0] as any, isFlower: false };
+  }
+  return { id, isFlower: false };
+}
 
 interface MeldDisplay {
   type: string;
@@ -10,13 +23,8 @@ interface MeldDisplay {
   isConcealed: boolean;
 }
 
-interface RiverEntry {
-  tile: TileDef;
-  isLastDiscard?: boolean;
-}
-
 interface SeatPositionProps {
-  position: 'bottom' | 'right' | 'top' | 'left';
+  position: 'top' | 'left' | 'right';
   seatIndex: number;
   displayName: string;
   tileCount: number;
@@ -24,73 +32,112 @@ interface SeatPositionProps {
   isActive: boolean;
   isRiichi: boolean;
   score: number;
-  isMe: boolean;
-  river: RiverEntry[];
   melds: MeldDisplay[];
 }
 
-const SEAT_WIND_LABELS = ['East', 'South', 'West', 'North'];
+const SEAT_WIND_LABELS = ['E', 'S', 'W', 'N'];
 
-export function SeatPosition({ position, seatIndex, displayName, tileCount, isDealer, isActive, isRiichi, score, isMe, river, melds }: SeatPositionProps) {
-  const isVertical = position === 'left' || position === 'right';
+const MELD_TILE_W = 30;
+const MELD_TILE_H = 42;
 
-  const positionStyles: Record<string, React.CSSProperties> = {
-    top: { position: 'absolute', top: '0.5rem', left: '50%', transform: 'translateX(-50%)' },
-    bottom: { position: 'absolute', bottom: '0.5rem', left: '50%', transform: 'translateX(-50%)' },
-    left: { position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)' },
-    right: { position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)' },
-  };
+function renderMeldTile(tile: TileDef) {
+  const props = { width: MELD_TILE_W, height: MELD_TILE_H };
+  if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...props} />;
+  if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...props} />;
+  if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...props} />;
+  if (tile.honorName) return <HonorTile honorName={tile.honorName} {...props} />;
+  return null;
+}
 
-  const tileBackWidth = 20;
-  const tileBackHeight = 28;
+export function SeatPosition({ position, seatIndex, displayName, tileCount, isDealer, isActive, score, melds }: SeatPositionProps) {
+  const hasMelds = melds.length > 0;
 
   return (
     <div style={{
-      ...positionStyles[position],
       display: 'flex',
-      flexDirection: isVertical ? 'row' : 'column',
+      flexDirection: 'column',
       alignItems: 'center',
-      gap: '0.375rem',
-      zIndex: 2,
+      gap: '4px',
     }}>
+      {/* Compact nameplate */}
       <div style={{
-        padding: '0.375rem 0.75rem',
-        borderRadius: '8px',
-        background: 'var(--surface-panel)',
-        border: isActive ? '2px solid var(--seat-active-ring)' : '1px solid var(--border-subtle)',
-        transition: 'border-color 200ms ease',
+        padding: '4px 12px',
+        borderRadius: '6px',
+        background: isActive ? 'var(--accent-warm)' : 'rgba(0,0,0,0.5)',
+        border: isActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.5rem',
-        flexShrink: 0,
+        gap: '6px',
+        whiteSpace: 'nowrap',
+        ...(isActive && { animation: 'activeGlow 2s ease-in-out infinite' }),
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ fontSize: '0.5625rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            {SEAT_WIND_LABELS[seatIndex]} {isDealer && '(D)'}
-          </div>
-          <div style={{ fontSize: '0.75rem', fontWeight: 500, color: isActive ? 'var(--accent-warm)' : 'var(--text-primary)' }}>
-            {displayName}
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.125rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{score}</div>
-          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-            {isRiichi && <span style={{ fontSize: '0.5625rem', color: 'var(--accent-warm)', fontWeight: 600 }}>RIICHI</span>}
-            {!isMe && <span style={{ fontSize: '0.5625rem', color: 'var(--text-muted)' }}>{tileCount} tiles</span>}
-          </div>
-        </div>
+        <span style={{
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
+        }}>
+          {SEAT_WIND_LABELS[seatIndex]}{isDealer ? 'D' : ''}
+        </span>
+        <span style={{
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          color: isActive ? '#fff' : 'rgba(255,255,255,0.9)',
+          maxWidth: '8ch',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}>
+          {displayName}
+        </span>
+        <span style={{
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          color: isActive ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.7)',
+        }}>
+          {score}
+        </span>
+        <span style={{ fontSize: '0.5625rem', color: isActive ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.4)' }}>
+          {tileCount}t
+        </span>
       </div>
 
-      {!isMe && tileCount > 0 && (
-        <div style={{ display: 'flex', gap: '0.5px', flexShrink: 0, flexWrap: 'nowrap' }}>
-          {Array.from({ length: Math.min(tileCount, 13) }).map((_, i) => (
-            <TileBack key={i} width={tileBackWidth} height={tileBackHeight} />
-          ))}
+      {/* Melds display - face-up tiles */}
+      {hasMelds && (
+        <div style={{
+          display: 'flex',
+          gap: '4px',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+        }}>
+          {melds.map((meld, i) => {
+            const tileIds: string[] = meld.tiles?.map((t: any) => typeof t === 'string' ? t : t.id) ?? [];
+            if (tileIds.length === 0) return null;
+            const meldLabel = meld.type === 'chi' ? 'Chi' : meld.type === 'pon' ? 'Pon' : meld.type.startsWith('kan') ? 'Kan' : '';
+            return (
+              <div key={i} style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1px',
+                background: 'rgba(0,0,0,0.25)',
+                padding: '3px 4px',
+                borderRadius: '4px',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}>
+                <div style={{ display: 'flex', gap: '1px' }}>
+                  {tileIds.map((tid: string, j: number) => (
+                    <div key={j}>{renderMeldTile(parseTileId(tid))}</div>
+                  ))}
+                </div>
+                {meldLabel && (
+                  <span style={{ fontSize: '0.4375rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {meldLabel}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
-
-      {melds.length > 0 && <MeldArea melds={melds} />}
-      {river.length > 0 && <RiverArea entries={river} />}
     </div>
   );
 }

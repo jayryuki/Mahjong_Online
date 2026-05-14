@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { legalActionsForSeat } from '../src/engine/validators.js';
 import { createSuitedTile, generateFullTileSet } from '../src/models/tile.js';
 import { buildWall } from '../src/models/wall.js';
-import { RIICHI_PRESET } from '../src/rules/riichi.js';
+import { HONG_KONG_PRESET } from '../src/rules/hongkong.js';
 import type { RoundState } from '../src/models/round.js';
 
 function makeRound(overrides: Partial<RoundState> = {}): RoundState {
@@ -34,25 +34,25 @@ function makeRound(overrides: Partial<RoundState> = {}): RoundState {
 describe('legalActionsForSeat', () => {
   it('returns DRAW_TILE for active seat when wall has tiles', () => {
     const round = makeRound({ activeSeat: 0 });
-    const actions = legalActionsForSeat(round, RIICHI_PRESET, 0);
+    const actions = legalActionsForSeat(round, HONG_KONG_PRESET, 0);
     expect(actions).toContain('DRAW_TILE');
   });
 
   it('does not return DRAW_TILE for inactive seat', () => {
     const round = makeRound({ activeSeat: 0 });
-    const actions = legalActionsForSeat(round, RIICHI_PRESET, 1);
+    const actions = legalActionsForSeat(round, HONG_KONG_PRESET, 1);
     expect(actions).not.toContain('DRAW_TILE');
   });
 
   it('returns DISCARD_TILE for active seat', () => {
     const round = makeRound({ activeSeat: 0 });
-    const actions = legalActionsForSeat(round, RIICHI_PRESET, 0);
+    const actions = legalActionsForSeat(round, HONG_KONG_PRESET, 0);
     expect(actions).toContain('DISCARD_TILE');
   });
 
-  it('does not return DECLARE_RIICHI in Phase 1', () => {
+  it('does not return DECLARE_RIICHI (not in HK rules)', () => {
     const round = makeRound({ activeSeat: 0 });
-    const actions = legalActionsForSeat(round, RIICHI_PRESET, 0);
+    const actions = legalActionsForSeat(round, HONG_KONG_PRESET, 0);
     expect(actions).not.toContain('DECLARE_RIICHI');
   });
 
@@ -71,13 +71,13 @@ describe('legalActionsForSeat', () => {
       },
     });
     // Seat 2 is eligible and not the active seat / discard seat
-    const actions = legalActionsForSeat(round, RIICHI_PRESET, 2);
+    const actions = legalActionsForSeat(round, HONG_KONG_PRESET, 2);
     expect(actions).toContain('PASS_REACTION');
   });
 
   it('does not return PASS_REACTION when not in reaction window', () => {
     const round = makeRound({ activeSeat: 0, reaction: null });
-    const actions = legalActionsForSeat(round, RIICHI_PRESET, 0);
+    const actions = legalActionsForSeat(round, HONG_KONG_PRESET, 0);
     expect(actions).not.toContain('PASS_REACTION');
   });
 });

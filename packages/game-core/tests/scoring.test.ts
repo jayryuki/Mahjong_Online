@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSuitedTile, createHonorTile } from '../src/models/tile.js';
-import { evaluatePatterns } from '../src/scoring/evaluator.js';
-import { calculateScore } from '../src/scoring/calculator.js';
-import { settleHand } from '../src/scoring/settlement.js';
+import { evaluateHKPatterns } from '../src/scoring/hk-evaluator.js';
+import { calculateHKScore } from '../src/scoring/hk-calculator.js';
 
 function man(r: number, i: number) { return createSuitedTile('man', r, i); }
 function pin(r: number, i: number) { return createSuitedTile('pin', r, i); }
@@ -10,22 +9,22 @@ function sou(r: number, i: number) { return createSuitedTile('sou', r, i); }
 function dragon(n: 'haku' | 'hatsu' | 'chun', i: number) { return createHonorTile(n, i); }
 function wind(n: 'east' | 'south' | 'west' | 'north', i: number) { return createHonorTile(n, i); }
 
-describe('evaluatePatterns', () => {
-  it('detects tanyao', () => {
+describe('evaluateHKPatterns', () => {
+  it('detects winning hand (1 fan) for an open hand with no patterns', () => {
     const concealed = [
-      man(2, 0), man(3, 0), man(4, 0),
-      pin(5, 0), pin(6, 0), pin(7, 0),
-      sou(3, 0), sou(4, 0), sou(5, 0),
-      man(6, 0), man(7, 0), man(8, 0),
-      pin(3, 0), pin(3, 1),
+      man(2, 10), man(3, 10), man(4, 10),
+      pin(5, 10), pin(6, 10), pin(7, 10),
+      sou(3, 10), sou(4, 10), sou(5, 10),
+      man(6, 10), man(7, 10),
     ];
-    const patterns = evaluatePatterns(concealed, [], 'tsumo', 'east', 'east');
-    const tanyao = patterns.find(p => p.id === 'tanyao');
-    expect(tanyao).toBeDefined();
-    expect(tanyao!.hanValue).toBe(1);
+    const melds = [{ type: 'pon' as const, tiles: [pin(1, 0), pin(1, 1), pin(1, 2)], calledFromSeat: 1, isConcealed: false }];
+    const patterns = evaluateHKPatterns(concealed, melds, 'tsumo', 'east', 'east');
+    const baseWin = patterns.find(p => p.id === 'base-win');
+    expect(baseWin).toBeDefined();
+    expect(baseWin!.fanValue).toBe(1);
   });
 
-  it('detects yakuhai (dragon triplet)', () => {
+  it('detects dragon pung (1 fan)', () => {
     const concealed = [
       man(2, 0), man(3, 0), man(4, 0),
       pin(5, 0), pin(6, 0), pin(7, 0),
@@ -33,53 +32,13 @@ describe('evaluatePatterns', () => {
       dragon('haku', 0), dragon('haku', 1), dragon('haku', 2),
       man(5, 0), man(5, 1),
     ];
-    const patterns = evaluatePatterns(concealed, [], 'ron', 'east', 'east');
-    const haku = patterns.find(p => p.id === 'yakuhai-haku');
+    const patterns = evaluateHKPatterns(concealed, [], 'tsumo', 'east', 'east');
+    const haku = patterns.find(p => p.id === 'dragon-haku');
     expect(haku).toBeDefined();
-    expect(haku!.hanValue).toBe(1);
+    expect(haku!.fanValue).toBe(1);
   });
 
-  it('detects menzen tsumo', () => {
-    const concealed = [
-      man(1, 0), man(2, 0), man(3, 0),
-      pin(4, 0), pin(5, 0), pin(6, 0),
-      sou(7, 0), sou(8, 0), sou(9, 0),
-      dragon('haku', 0), dragon('haku', 1), dragon('haku', 2),
-      man(5, 0), man(5, 1),
-    ];
-    const patterns = evaluatePatterns(concealed, [], 'tsumo', 'east', 'east');
-    const tsumo = patterns.find(p => p.id === 'menzen-tsumo');
-    expect(tsumo).toBeDefined();
-  });
-
-  it('no menzen tsumo on ron', () => {
-    const concealed = [
-      man(1, 0), man(2, 0), man(3, 0),
-      pin(4, 0), pin(5, 0), pin(6, 0),
-      sou(7, 0), sou(8, 0), sou(9, 0),
-      dragon('haku', 0), dragon('haku', 1), dragon('haku', 2),
-      man(5, 0), man(5, 1),
-    ];
-    const patterns = evaluatePatterns(concealed, [], 'ron', 'east', 'east');
-    const tsumo = patterns.find(p => p.id === 'menzen-tsumo');
-    expect(tsumo).toBeUndefined();
-  });
-
-  it('detects chanta with terminals in every block', () => {
-    const concealed = [
-      man(1, 0), man(2, 0), man(3, 0),
-      pin(7, 0), pin(8, 0), pin(9, 0),
-      sou(1, 0), sou(2, 0), sou(3, 0),
-      wind('east', 0), wind('east', 1), wind('east', 2),
-      dragon('chun', 0), dragon('chun', 1),
-    ];
-    const patterns = evaluatePatterns(concealed, [], 'tsumo', 'south', 'east');
-    const chanta = patterns.find(p => p.id === 'chanta');
-    expect(chanta).toBeDefined();
-    expect(chanta!.hanValue).toBe(2); // concealed chanta is 2 han
-  });
-
-  it('detects round wind yakuhai', () => {
+  it('detects round wind pung (1 fan)', () => {
     const concealed = [
       man(2, 0), man(3, 0), man(4, 0),
       pin(5, 0), pin(6, 0), pin(7, 0),
@@ -87,13 +46,13 @@ describe('evaluatePatterns', () => {
       wind('east', 0), wind('east', 1), wind('east', 2),
       man(5, 0), man(5, 1),
     ];
-    const patterns = evaluatePatterns(concealed, [], 'ron', 'south', 'east');
-    const roundEast = patterns.find(p => p.id === 'yakuhai-round-east');
+    const patterns = evaluateHKPatterns(concealed, [], 'tsumo', 'south', 'east');
+    const roundEast = patterns.find(p => p.id === 'round-wind-east');
     expect(roundEast).toBeDefined();
-    expect(roundEast!.hanValue).toBe(1);
+    expect(roundEast!.fanValue).toBe(1);
   });
 
-  it('detects seat wind yakuhai', () => {
+  it('detects seat wind pung (1 fan)', () => {
     const concealed = [
       man(2, 0), man(3, 0), man(4, 0),
       pin(5, 0), pin(6, 0), pin(7, 0),
@@ -101,107 +60,81 @@ describe('evaluatePatterns', () => {
       wind('south', 0), wind('south', 1), wind('south', 2),
       man(5, 0), man(5, 1),
     ];
-    const patterns = evaluatePatterns(concealed, [], 'ron', 'south', 'east');
-    const seatSouth = patterns.find(p => p.id === 'yakuhai-seat-south');
+    const patterns = evaluateHKPatterns(concealed, [], 'tsumo', 'south', 'east');
+    const seatSouth = patterns.find(p => p.id === 'seat-wind-south');
     expect(seatSouth).toBeDefined();
-    expect(seatSouth!.hanValue).toBe(1);
+    expect(seatSouth!.fanValue).toBe(1);
+  });
+
+  it('detects big dragons (4 fan)', () => {
+    const concealed = [
+      dragon('haku', 0), dragon('haku', 1), dragon('haku', 2),
+      dragon('hatsu', 0), dragon('hatsu', 1), dragon('hatsu', 2),
+      dragon('chun', 0), dragon('chun', 1), dragon('chun', 2),
+      man(1, 0), man(1, 1), man(1, 2),
+      pin(5, 0), pin(5, 1),
+    ];
+    const patterns = evaluateHKPatterns(concealed, [], 'tsumo', 'east', 'east');
+    const bigDragons = patterns.find(p => p.id === 'big-dragons');
+    expect(bigDragons).toBeDefined();
+    expect(bigDragons!.fanValue).toBe(4);
+  });
+
+  it('detects full flush (6 fan)', () => {
+    // All man tiles, no honors, but not nine gates
+    const concealed = [
+      man(2, 0), man(3, 0), man(4, 0),
+      man(5, 0), man(6, 0), man(7, 0),
+      man(3, 1), man(4, 1), man(5, 1),
+      man(6, 1), man(7, 1), man(8, 1),
+      man(1, 0), man(1, 1),
+    ];
+    const patterns = evaluateHKPatterns(concealed, [], 'tsumo', 'east', 'east');
+    const flush = patterns.find(p => p.id === 'full-flush');
+    expect(flush).toBeDefined();
+    expect(flush!.fanValue).toBe(6);
   });
 });
 
-describe('calculateScore', () => {
-  it('calculates 1 han / 30 fu', () => {
-    const patterns = [{ id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' }];
-    const result = calculateScore(patterns, 30);
-    expect(result.han).toBe(1);
-    expect(result.total).toBe(1000);
+describe('calculateHKScore', () => {
+  it('calculates 1 fan = 2 points', () => {
+    const patterns = [{ id: 'base-win', name: 'Winning Hand', fanValue: 1, description: '' }];
+    const result = calculateHKScore(patterns, false, false);
+    expect(result.fan).toBe(1);
+    expect(result.basePoints).toBe(2);
   });
 
-  it('calculates 3 han / 30 fu', () => {
-    const patterns = [
-      { id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' },
-      { id: 'pinfu', name: 'Pinfu', hanValue: 1, description: '' },
-      { id: 'menzen-tsumo', name: 'Menzen Tsumo', hanValue: 1, description: '' },
-    ];
-    const result = calculateScore(patterns, 30);
-    expect(result.han).toBe(3);
-    expect(result.total).toBe(4000);
+  it('calculates 1 fan = 2 points', () => {
+    const patterns = [{ id: 'dragon-haku', name: 'Dragon Pung', fanValue: 1, description: '' }];
+    const result = calculateHKScore(patterns, false, false);
+    expect(result.fan).toBe(1);
+    expect(result.basePoints).toBe(2);
   });
 
-  it('calculates 2 han / 30 fu', () => {
-    const patterns = [
-      { id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' },
-      { id: 'pinfu', name: 'Pinfu', hanValue: 1, description: '' },
-    ];
-    const result = calculateScore(patterns, 30);
-    expect(result.han).toBe(2);
-    expect(result.total).toBe(2000);
+  it('GONG doubles the score', () => {
+    const patterns = [{ id: 'dragon-haku', name: 'Dragon Pung', fanValue: 1, description: '' }];
+    const result = calculateHKScore(patterns, true, false);
+    expect(result.gongMultiplier).toBe(2);
+    expect(result.basePoints).toBe(2);
+    expect(result.total).toBeGreaterThan(2);
   });
 
-  it('calculates 4 han / 30 fu', () => {
-    const patterns = [
-      { id: 'p1', name: 'P1', hanValue: 2, description: '' },
-      { id: 'p2', name: 'P2', hanValue: 2, description: '' },
-    ];
-    const result = calculateScore(patterns, 30);
-    expect(result.han).toBe(4);
-    expect(result.total).toBe(8000);
+  it('caps at 128 points for 7+ fan', () => {
+    const patterns = [{ id: 'thirteen-orphans', name: 'Thirteen Orphans', fanValue: 13, description: '' }];
+    const result = calculateHKScore(patterns, false, false);
+    expect(result.fan).toBe(13);
+    expect(result.basePoints).toBe(128);
   });
 
-  it('caps at mangan for 5+ han', () => {
-    const patterns = [
-      { id: 'p1', name: 'P1', hanValue: 3, description: '' },
-      { id: 'p2', name: 'P2', hanValue: 2, description: '' },
-    ];
-    const result = calculateScore(patterns, 30);
-    expect(result.han).toBe(5);
-    expect(result.total).toBe(8000);
-  });
-});
-
-describe('settleHand', () => {
-  it('calculates ron settlement (non-dealer)', () => {
-    const patterns = [{ id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' }];
-    const result = settleHand(0, 'ron', 2, patterns, 30, 4, false);
-    expect(result.winner).toBe(0);
-    expect(result.winType).toBe('ron');
-    expect(result.settlement).toHaveLength(1);
-    expect(result.settlement[0].from).toBe(2);
-    expect(result.settlement[0].to).toBe(0);
+  it('dealer winner gets paid by all 3 others', () => {
+    const patterns = [{ id: 'dragon-haku', name: 'Dragon Pung', fanValue: 1, description: '' }];
+    const result = calculateHKScore(patterns, false, true);
+    expect(result.total).toBe(6); // 2 points × 3 players
   });
 
-  it('calculates tsumo settlement', () => {
-    const patterns = [{ id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' }];
-    const result = settleHand(0, 'tsumo', undefined, patterns, 30, 4, false);
-    expect(result.winner).toBe(0);
-    expect(result.winType).toBe('tsumo');
-    expect(result.settlement).toHaveLength(3);
-    expect(result.settlement.every(s => s.to === 0)).toBe(true);
-  });
-
-  it('calculates ron settlement (dealer)', () => {
-    const patterns = [{ id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' }];
-    const result = settleHand(0, 'ron', 2, patterns, 30, 4, true);
-    expect(result.settlement).toHaveLength(1);
-    // Dealer ron is 1.5x
-    expect(result.settlement[0].amount).toBeGreaterThan(1000);
-  });
-
-  it('settles dealer tsumo with equal payments from all others', () => {
-    const patterns = [{ id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' }];
-    const result = settleHand(0, 'tsumo', undefined, patterns, 30, 4, true);
-    expect(result.settlement).toHaveLength(3);
-    // All three losers should pay the same amount for dealer tsumo
-    const amounts = result.settlement.map(s => s.amount);
-    expect(amounts[0]).toBe(amounts[1]);
-    expect(amounts[1]).toBe(amounts[2]);
-  });
-
-  it('settles non-dealer tsumo with all others paying', () => {
-    const patterns = [{ id: 'tanyao', name: 'Tanyao', hanValue: 1, description: '' }];
-    const result = settleHand(1, 'tsumo', undefined, patterns, 30, 4, false);
-    expect(result.settlement).toHaveLength(3);
-    expect(result.settlement.every(s => s.to === 1)).toBe(true);
-    // All payments go to the winner from the other 3 seats
-    expect(result.settlement.map(s => s.from).sort()).toEqual([0, 2, 3]);
+  it('non-dealer winner: dealer pays double', () => {
+    const patterns = [{ id: 'dragon-haku', name: 'Dragon Pung', fanValue: 1, description: '' }];
+    const result = calculateHKScore(patterns, false, false);
+    expect(result.total).toBe(8); // dealer pays 4, others pay 2 each
   });
 });

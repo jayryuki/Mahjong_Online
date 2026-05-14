@@ -1,19 +1,21 @@
 import { Room, Client } from '@colyseus/core';
-import { GameState, PlayerSchema, SeatRoundSchema } from './schema/GameState.js';
+import { GameState, PlayerSchema, SeatRoundSchema, ChatMessageSchema } from './schema/GameState.js';
 import {
   generateFullTileSet,
   buildWall,
   drawTile as wallDrawTile,
   drawReplacementTile,
   tileSortKey,
-  RIICHI_PRESET,
+  HONG_KONG_PRESET,
   canTransition,
   createReaction,
   submitResponse,
   autoPassUnresponded,
   isAllResponded,
   isValidWinningShape,
-  evaluatePatterns,
+  decomposeWinningHand,
+  evaluateHKPatterns,
+  calculateHKScore,
   settleHand,
   isTenpai,
 } from '@mahjong/game-core';
@@ -26,7 +28,28 @@ import type {
   ActionType,
   HandResult,
   WallState,
+  HKFanMatch,
+  HKScoreBreakdown,
+  HandDecomposition,
 } from '@mahjong/game-core';
+
+function findChiOptions(concealed: TileDef[], discardTile: TileDef): Array<[number, number]> {
+  if (!discardTile.suit || !discardTile.rank) return [];
+  const options: Array<[number, number]> = [];
+  const sameSuit = concealed.filter((t) => t.suit === discardTile.suit && t.rank !== undefined);
+
+  for (let i = 0; i < sameSuit.length; i++) {
+    for (let j = i + 1; j < sameSuit.length; j++) {
+      const ranks = [sameSuit[i].rank!, sameSuit[j].rank!, discardTile.rank!].sort((a, b) => a - b);
+      if (ranks[2] - ranks[0] === 2 && ranks[1] - ranks[0] === 1) {
+        const idx1 = concealed.indexOf(sameSuit[i]);
+        const idx2 = concealed.indexOf(sameSuit[j]);
+        options.push([idx1, idx2]);
+      }
+    }
+  }
+  return options;
+}
 
 export class MahjongRoom extends Room<GameState> {
   maxClients = 4;
@@ -37,6 +60,7 @@ export class MahjongRoom extends Room<GameState> {
   private seatMelds: Map<number, Meld[]> = new Map();
   private seatRivers: Map<number, TileDef[]> = new Map();
   private doraIndicators: TileDef[] = [];
+  private wildCardTile: TileDef | null = null;
   private activeSeat = 0;
   private dealerSeat = 0;
   private gamePhase: GamePhase = { type: 'LOBBY' };
@@ -74,6 +98,23 @@ export class MahjongRoom extends Room<GameState> {
       this.startMatch();
     });
 
+    this.onMessage('chat', (client, data: { text: string }) => {
+      if (!data.text || typeof data.text !== 'string') return;
+      const text = data.text.slice(0, 200).trim();
+      if (!text) return;
+      const player = this.state.players.get(client.sessionId);
+      const msg = new ChatMessageSchema();
+      msg.senderId = client.sessionId;
+      msg.senderName = player?.displayName ?? 'Player';
+      msg.text = text;
+      msg.timestamp = Date.now();
+      this.state.chatMessages.push(msg);
+      // Keep only the last 50 messages
+      while (this.state.chatMessages.length > 50) {
+        this.state.chatMessages.shift();
+      }
+    });
+
     // --- Gameplay messages ---
     this.onMessage('draw-tile', (client) => {
       this.handleDrawTile(client);
@@ -91,12 +132,20 @@ export class MahjongRoom extends Room<GameState> {
       this.handleCallPon(client);
     });
 
-    this.onMessage('call-chi', (client, data: { tiles: [number, number] }) => {
+    this.onMessage('call-chi', (client, data: { tileIds?: [string, string]; tiles?: [number, number] }) => {
       this.handleCallChi(client, data);
     });
 
-    this.onMessage('declare-win-ron', (client) => {
-      this.handleDeclareWinRon(client);
+    this.onMessage('call-kan-open', (client) => {
+      this.handleCallKanOpen(client);
+    });
+
+    this.onMessage('call-kan-closed', (client, data: { tileId: string }) => {
+      this.handleCallKanClosed(client, data);
+    });
+
+    this.onMessage('call-kan-added', (client, data: { tileId: string }) => {
+      this.handleCallKanAdded(client, data);
     });
 
     this.onMessage('declare-win-tsumo', (client) => {
@@ -105,10 +154,6 @@ export class MahjongRoom extends Room<GameState> {
 
     this.onMessage('request-hand', (client) => {
       this.handleRequestHand(client);
-    });
-
-    this.onMessage('declare-riichi', (client) => {
-      this.handleDeclareRiichi(client);
     });
 
     this.onMessage('next-hand', () => {
@@ -198,6 +243,7 @@ export class MahjongRoom extends Room<GameState> {
           legalActions.push('DECLARE_WIN_RON');
         }
         const matchCount = concealed.filter((t) => tileSortKey(t) === tileSortKey(discardedTile)).length;
+        if (matchCount >= 3 && HONG_KONG_PRESET.allowKan) legalActions.push('CALL_KAN_OPEN');
         if (matchCount >= 2) legalActions.push('CALL_PON');
         if (this.reactionState.discardSeat === (seat + 3) % 4 && discardedTile.suit) {
           legalActions.push('CALL_CHI');
@@ -216,6 +262,7 @@ export class MahjongRoom extends Room<GameState> {
       phase: this.gamePhase.type,
       activeSeat,
       legalActions,
+      wildCardTileId: this.wildCardTile?.id ?? null,
     });
   }
 
@@ -223,6 +270,13 @@ export class MahjongRoom extends Room<GameState> {
     this.handVersions[seat]++;
     const seatSchema = this.state.seats.get(String(seat));
     if (seatSchema) seatSchema.handVersion = this.handVersions[seat];
+  }
+
+  private markWildCards(tiles: TileDef[]) {
+    if (!this.wildCardTile) return;
+    for (const tile of tiles) {
+      tile.isWild = tileSortKey(tile) === tileSortKey(this.wildCardTile);
+    }
   }
 
   private isBot(seat: number): boolean {
@@ -288,6 +342,7 @@ export class MahjongRoom extends Room<GameState> {
     this.state.honba = this.honba;
     this.state.riichiSticks = this.riichiSticks;
     this.state.doraIndicators = this.doraIndicators.map((t) => t.id).join(',');
+    this.state.wildCardTileId = this.wildCardTile?.id ?? '';
     this.updateSeatSchemas();
   }
 
@@ -387,6 +442,16 @@ export class MahjongRoom extends Room<GameState> {
     // Dora indicator: first tile of the dead wall
     this.doraIndicators = [this.wall.tiles[this.wall.deadWallStart]];
 
+    // Wild card: draw the next tile after dealing and mark all copies as wild
+    this.wildCardTile = null;
+    if (HONG_KONG_PRESET.wildCardEnabled) {
+      const wildFlipResult = wallDrawTile(this.wall);
+      if (wildFlipResult.tile) {
+        this.wall = wildFlipResult.wall;
+        this.wildCardTile = wildFlipResult.tile;
+      }
+    }
+
     // Initialize per-seat state
     this.concealedTiles.clear();
     this.seatMelds.clear();
@@ -398,6 +463,13 @@ export class MahjongRoom extends Room<GameState> {
       this.concealedTiles.set(i, []);
       this.seatMelds.set(i, []);
       this.seatRivers.set(i, []);
+
+      // Reset per-seat schema flags for new hand
+      const seatSchema = this.state.seats.get(String(i));
+      if (seatSchema) {
+        seatSchema.isRiichi = false;
+        seatSchema.hasPassedReaction = false;
+      }
     }
 
     // Deal 13 tiles to each seat
@@ -411,8 +483,9 @@ export class MahjongRoom extends Room<GameState> {
       }
     }
 
-    // Sort each player's hand
+    // Sort each player's hand and mark wild cards
     for (let i = 0; i < 4; i++) {
+      this.markWildCards(this.concealedTiles.get(i)!);
       this.concealedTiles
         .get(i)!
         .sort((a, b) => tileSortKey(a).localeCompare(tileSortKey(b)));
@@ -433,6 +506,7 @@ export class MahjongRoom extends Room<GameState> {
         client.send('deal', {
           tiles: this.concealedTiles.get(i)!.map((t) => t.id),
           handVersion: this.handVersions[i],
+          wildCardTileId: this.wildCardTile?.id ?? null,
         });
       }
     }
@@ -479,6 +553,11 @@ export class MahjongRoom extends Room<GameState> {
     this.wall = result.wall;
     const tile = result.tile;
 
+    // Mark wild card if applicable
+    if (this.wildCardTile) {
+      tile.isWild = tileSortKey(tile) === tileSortKey(this.wildCardTile);
+    }
+
     // Add to concealed
     this.concealedTiles.get(seat)!.push(tile);
     this.incrementHandVersion(seat);
@@ -489,17 +568,34 @@ export class MahjongRoom extends Room<GameState> {
     const concealed = this.concealedTiles.get(seat)!;
     const melds = this.seatMelds.get(seat)!;
 
-    if (this.seatIsRiichi(seat)) {
-      // Riichi player: only discard and tsumo
-      if (isValidWinningShape([...concealed], melds.length)) {
-        actions.push('DECLARE_WIN_TSUMO');
+    // Check for tsumo win
+    if (isValidWinningShape([...concealed], melds.length)) {
+      actions.push('DECLARE_WIN_TSUMO');
+    }
+
+    // Check for kan-closed: 4 of the same tile in concealed hand
+    if (HONG_KONG_PRESET.allowKan) {
+      const tileCounts = new Map<string, number>();
+      for (const t of concealed) {
+        const key = tileSortKey(t);
+        tileCounts.set(key, (tileCounts.get(key) ?? 0) + 1);
       }
-    } else {
-      if (isValidWinningShape([...concealed], melds.length)) {
-        actions.push('DECLARE_WIN_TSUMO');
+      for (const [, count] of tileCounts) {
+        if (count === 4) {
+          actions.push('CALL_KAN_CLOSED');
+          break;
+        }
       }
-      if (this.canDeclareRiichi(seat)) {
-        actions.push('DECLARE_RIICHI');
+
+      // Check for kan-added: drawn tile completes an existing pon
+      for (const meld of melds) {
+        if (meld.type === 'pon') {
+          const ponKey = tileSortKey(meld.tiles[0]);
+          if (concealed.some((t) => tileSortKey(t) === ponKey)) {
+            actions.push('CALL_KAN_ADDED');
+            break;
+          }
+        }
       }
     }
 
@@ -533,15 +629,12 @@ export class MahjongRoom extends Room<GameState> {
     const concealed = this.concealedTiles.get(seat)!;
     const tileIndex = concealed.findIndex((t) => t.id === data.tileId);
     if (tileIndex === -1) return;
+    // Prevent discarding wild card tiles
+    if (this.wildCardTile && tileSortKey(concealed[tileIndex]) === tileSortKey(this.wildCardTile)) return;
 
     const [discardedTile] = concealed.splice(tileIndex, 1);
     this.incrementHandVersion(seat);
     this.seatRivers.get(seat)!.push(discardedTile);
-
-    if (this.seatIsRiichi(seat)) {
-      const seatSchema = this.state.seats.get(String(seat));
-      if (seatSchema) seatSchema.isRiichi = true;
-    }
 
     this.checkAndOpenReactionWindow(seat, discardedTile);
   }
@@ -555,39 +648,30 @@ export class MahjongRoom extends Room<GameState> {
 
     for (let i = 0; i < 4; i++) {
       if (i === discardSeat) continue;
-      if (this.seatIsRiichi(i)) {
-        const testConcealed = [...(this.concealedTiles.get(i) ?? []), discardedTile];
-        if (isValidWinningShape(testConcealed, this.seatMelds.get(i)!.length)) {
-          eligibleSeats.push(i);
-        }
-        continue;
-      }
 
       const otherConcealed = this.concealedTiles.get(i)!;
-      const otherMelds = this.seatMelds.get(i)!;
-
-      const testConcealed = [...otherConcealed, discardedTile];
-      if (isValidWinningShape(testConcealed, otherMelds.length)) {
-        eligibleSeats.push(i);
-        continue;
-      }
 
       const matchingCount = otherConcealed.filter(
         (t) => tileSortKey(t) === tileSortKey(discardedTile),
       ).length;
-      if (matchingCount >= 2 && RIICHI_PRESET.allowPon && RIICHI_PRESET.allowOpenHand) {
+      // Kan-open: player has 3 of the discarded tile (4 total with the discard)
+      if (matchingCount >= 3 && HONG_KONG_PRESET.allowKan && HONG_KONG_PRESET.allowOpenHand) {
+        eligibleSeats.push(i);
+        continue;
+      }
+      if (matchingCount >= 2 && HONG_KONG_PRESET.allowPon && HONG_KONG_PRESET.allowOpenHand) {
         eligibleSeats.push(i);
         continue;
       }
 
       if (
         i === (discardSeat + 1) % 4 &&
-        RIICHI_PRESET.allowChi &&
-        RIICHI_PRESET.allowOpenHand &&
+        HONG_KONG_PRESET.allowChi &&
+        HONG_KONG_PRESET.allowOpenHand &&
         discardedTile.suit
       ) {
-        const sameSuit = otherConcealed.filter((t) => t.suit === discardedTile.suit);
-        if (sameSuit.length >= 2) {
+        const chiOptions = findChiOptions(otherConcealed, discardedTile);
+        if (chiOptions.length > 0) {
           eligibleSeats.push(i);
         }
       }
@@ -599,7 +683,7 @@ export class MahjongRoom extends Room<GameState> {
         discardSeat,
         discardedTile,
         eligibleSeats,
-        RIICHI_PRESET.reactionTimerSeconds * 1000,
+        HONG_KONG_PRESET.reactionTimerSeconds * 1000,
       );
 
       const targetPhase: GamePhase = {
@@ -619,24 +703,24 @@ export class MahjongRoom extends Room<GameState> {
           const eligibleClient = this.getClientForSeat(eligibleSeat);
           if (eligibleClient) {
             const seatActions: string[] = ['PASS_REACTION'];
-            const testConcealed = [
-              ...(this.concealedTiles.get(eligibleSeat) ?? []),
-              discardedTile,
-            ];
-            if (isValidWinningShape(testConcealed, this.seatMelds.get(eligibleSeat)!.length)) {
-              seatActions.push('DECLARE_WIN_RON');
-            }
+            let chiTileOptions: string[][] = [];
             const matchCount2 = this.concealedTiles
               .get(eligibleSeat)!
               .filter((t) => tileSortKey(t) === tileSortKey(discardedTile)).length;
+            if (matchCount2 >= 3 && HONG_KONG_PRESET.allowKan) seatActions.push('CALL_KAN_OPEN');
             if (matchCount2 >= 2) seatActions.push('CALL_PON');
             if (eligibleSeat === (discardSeat + 1) % 4 && discardedTile.suit) {
-              seatActions.push('CALL_CHI');
+              const chiOptions = findChiOptions(this.concealedTiles.get(eligibleSeat)!, discardedTile);
+              if (chiOptions.length > 0) {
+                seatActions.push('CALL_CHI');
+                chiTileOptions = chiOptions.map(([i, j]) => [this.concealedTiles.get(eligibleSeat)![i].id, this.concealedTiles.get(eligibleSeat)![j].id]);
+              }
             }
             eligibleClient.send('reaction-options', {
               discardSeat,
               discardTileId: discardedTile.id,
               actions: seatActions,
+              chiOptions: chiTileOptions,
             });
           }
         }
@@ -718,8 +802,28 @@ export class MahjongRoom extends Room<GameState> {
       actions.push('DECLARE_WIN_TSUMO');
     }
 
-    if (this.canDeclareRiichi(seat)) {
-      actions.push('DECLARE_RIICHI');
+    // Check for kan-closed / kan-added
+    if (HONG_KONG_PRESET.allowKan) {
+      const tileCounts = new Map<string, number>();
+      for (const t of concealed) {
+        const key = tileSortKey(t);
+        tileCounts.set(key, (tileCounts.get(key) ?? 0) + 1);
+      }
+      for (const [, count] of tileCounts) {
+        if (count === 4) {
+          actions.push('CALL_KAN_CLOSED');
+          break;
+        }
+      }
+      for (const meld of melds) {
+        if (meld.type === 'pon') {
+          const ponKey = tileSortKey(meld.tiles[0]);
+          if (concealed.some((t) => tileSortKey(t) === ponKey)) {
+            actions.push('CALL_KAN_ADDED');
+            break;
+          }
+        }
+      }
     }
 
     this.setPhase({
@@ -743,16 +847,6 @@ export class MahjongRoom extends Room<GameState> {
   private executeBotDecision(seat: number) {
     const concealed = this.concealedTiles.get(seat)!;
 
-    // Check if bot should declare riichi
-    const currentPhase = this.gamePhase;
-    if (
-      currentPhase.type === 'TURN_DECISION' &&
-      currentPhase.legalActions.includes('DECLARE_RIICHI') &&
-      !this.seatIsRiichi(seat)
-    ) {
-      this.applyRiichiDeclaration(seat);
-    }
-
     const discardIndex = this.chooseBotDiscard(seat);
     const discardedTile = concealed[discardIndex];
     if (!discardedTile) return;
@@ -760,11 +854,6 @@ export class MahjongRoom extends Room<GameState> {
     concealed.splice(discardIndex, 1);
     this.incrementHandVersion(seat);
     this.seatRivers.get(seat)!.push(discardedTile);
-
-    if (this.seatIsRiichi(seat)) {
-      const seatSchema = this.state.seats.get(String(seat));
-      if (seatSchema) seatSchema.isRiichi = true;
-    }
 
     this.checkAndOpenReactionWindow(seat, discardedTile);
   }
@@ -774,6 +863,11 @@ export class MahjongRoom extends Room<GameState> {
     if (concealed.length === 0) return 0;
 
     const scores = concealed.map((tile, idx) => {
+      // Never discard wild cards — they are the most valuable tiles
+      if (this.wildCardTile && tileSortKey(tile) === tileSortKey(this.wildCardTile)) {
+        return 1000;
+      }
+
       let score = 0;
 
       const sameCount = concealed.filter(t => tileSortKey(t) === tileSortKey(tile)).length;
@@ -820,15 +914,15 @@ export class MahjongRoom extends Room<GameState> {
     const concealed = this.concealedTiles.get(seat)!;
     const melds = this.seatMelds.get(seat)!;
 
-    if (!isValidWinningShape([...concealed], melds.length)) return;
+    const decomposition = decomposeWinningHand([...concealed], melds.length);
+    if (!decomposition) return;
 
     const seatWind = MahjongRoom.SEAT_WINDS[seat];
-    const patterns = evaluatePatterns(concealed, melds, 'tsumo', seatWind, this.roundWind);
-    if (patterns.length === 0) return;
-
+    const patterns = evaluateHKPatterns(concealed, melds, 'tsumo', seatWind, this.roundWind);
+    const hasGong = melds.some(m => m.type.startsWith('kan'));
     const isDealer = seat === this.dealerSeat;
-    const result = settleHand(seat, 'tsumo', undefined, patterns, 30, 4, isDealer);
-    this.applyWinResult(seat, 'tsumo', result);
+    const scoreResult = calculateHKScore(patterns, hasGong, isDealer);
+    this.applyHKWinResult(seat, 'tsumo', patterns, scoreResult, hasGong, decomposition);
   }
 
   private executeBotReaction(seat: number) {
@@ -838,28 +932,37 @@ export class MahjongRoom extends Room<GameState> {
 
     const discardedTile = this.reactionState.discardTile;
     const otherConcealed = this.concealedTiles.get(seat)!;
-    const otherMelds = this.seatMelds.get(seat)!;
 
-    // Always declare ron if possible
-    const testConcealed = [...otherConcealed, discardedTile];
-    if (isValidWinningShape(testConcealed, otherMelds.length)) {
-      const seatWind = MahjongRoom.SEAT_WINDS[seat];
-      const patterns = evaluatePatterns(testConcealed, otherMelds, 'ron', seatWind, this.roundWind);
-      if (patterns.length > 0) {
-        this.reactionState = submitResponse(this.reactionState, seat, { type: 'ron' });
-        this.resolveReaction();
-        return;
-      }
-    }
-
-    // 30% chance to call pon
     const matchCount = otherConcealed.filter(
       (t) => tileSortKey(t) === tileSortKey(discardedTile),
     ).length;
-    if (matchCount >= 2 && Math.random() < 0.3 && !this.seatIsRiichi(seat)) {
+
+    // 70% chance to call kan-open (having 3 of a kind is very strong)
+    if (matchCount >= 3 && Math.random() < 0.7) {
+      this.reactionState = submitResponse(this.reactionState, seat, { type: 'kan-open' });
+      this.checkReactionResolution();
+      return;
+    }
+
+    // 30% chance to call pon
+    if (matchCount >= 2 && Math.random() < 0.3) {
       this.reactionState = submitResponse(this.reactionState, seat, { type: 'pon' });
       this.checkReactionResolution();
       return;
+    }
+
+    // 30% chance to call chi (only for left-seat player)
+    if (
+      seat === (this.reactionState.discardSeat + 1) % 4 &&
+      Math.random() < 0.3
+    ) {
+      const chiOptions = findChiOptions(otherConcealed, discardedTile);
+      if (chiOptions.length > 0) {
+        const pick = chiOptions[Math.floor(Math.random() * chiOptions.length)];
+        this.reactionState = submitResponse(this.reactionState, seat, { type: 'chi', tiles: pick });
+        this.checkReactionResolution();
+        return;
+      }
     }
 
     // Pass
@@ -867,60 +970,6 @@ export class MahjongRoom extends Room<GameState> {
     const seatSchema = this.state.seats.get(String(seat));
     if (seatSchema) seatSchema.hasPassedReaction = true;
     this.checkReactionResolution();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Riichi helpers
-  // ---------------------------------------------------------------------------
-
-  private seatIsRiichi(seat: number): boolean {
-    return this.state.seats.get(String(seat))?.isRiichi ?? false;
-  }
-
-  private canDeclareRiichi(seat: number): boolean {
-    if (this.seatIsRiichi(seat)) return false;
-    if (this.seatMelds.get(seat)!.some(m => !m.isConcealed)) return false;
-
-    const concealed = this.concealedTiles.get(seat)!;
-    const meldCount = this.seatMelds.get(seat)!.length;
-
-    for (let i = 0; i < concealed.length; i++) {
-      const remaining = concealed.filter((_, idx) => idx !== i);
-      if (isTenpai(remaining, meldCount)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private applyRiichiDeclaration(seat: number) {
-    this.scores[seat] -= 1000;
-    this.riichiSticks++;
-
-    const seatSchema = this.state.seats.get(String(seat));
-    if (seatSchema) seatSchema.isRiichi = true;
-
-    this.syncSchemaFromInternal();
-  }
-
-  private handleDeclareRiichi(client: Client) {
-    const seat = this.getSeatForClient(client);
-    if (seat === null || seat !== this.activeSeat) return;
-    if (this.gamePhase.type !== 'TURN_DECISION') return;
-    if (!this.canDeclareRiichi(seat)) return;
-
-    this.applyRiichiDeclaration(seat);
-
-    this.setPhase({
-      type: 'TURN_DECISION',
-      activeSeat: seat,
-      legalActions: ['DISCARD_TILE'],
-    });
-    this.syncSchemaFromInternal();
-
-    client.send('legal-actions', { actions: ['DISCARD_TILE'] });
-    client.send('riichi-confirmed', { seat });
-    this.broadcast('riichi-declared', { seat });
   }
 
   // ---------------------------------------------------------------------------
@@ -950,27 +999,77 @@ export class MahjongRoom extends Room<GameState> {
     this.checkReactionResolution();
   }
 
-  private handleCallChi(client: Client, data: { tiles: [number, number] }) {
+  private handleCallChi(client: Client, data: { tileIds?: [string, string]; tiles?: [number, number] }) {
     if (this.gamePhase.type !== 'REACTION_WINDOW' || !this.reactionState) return;
     const seat = this.getSeatForClient(client);
     if (seat === null) return;
 
+    // Convert tile IDs to indices if provided
+    let tileIndices: [number, number];
+    if (data.tileIds) {
+      const concealed = this.concealedTiles.get(seat)!;
+      const idx1 = concealed.findIndex(t => t.id === data.tileIds![0]);
+      const idx2 = concealed.findIndex(t => t.id === data.tileIds![1]);
+      if (idx1 === -1 || idx2 === -1) return;
+      tileIndices = [idx1, idx2];
+    } else if (data.tiles) {
+      tileIndices = data.tiles;
+    } else {
+      return;
+    }
+
     this.reactionState = submitResponse(this.reactionState, seat, {
       type: 'chi',
-      tiles: data.tiles,
+      tiles: tileIndices,
     });
     this.checkReactionResolution();
   }
 
-  private handleDeclareWinRon(client: Client) {
+  private handleCallKanOpen(client: Client) {
     if (this.gamePhase.type !== 'REACTION_WINDOW' || !this.reactionState) return;
     const seat = this.getSeatForClient(client);
     if (seat === null) return;
 
-    this.reactionState = submitResponse(this.reactionState, seat, { type: 'ron' });
+    this.reactionState = submitResponse(this.reactionState, seat, { type: 'kan-open' });
+    this.checkReactionResolution();
+  }
 
-    // Ron has highest priority — resolve immediately
-    this.resolveReaction();
+  private handleCallKanClosed(client: Client, data: { tileId: string }) {
+    if (this.gamePhase.type !== 'TURN_DECISION') return;
+    const seat = this.getSeatForClient(client);
+    if (seat === null || seat !== this.activeSeat) return;
+
+    const concealed = this.concealedTiles.get(seat)!;
+    const tileIndex = concealed.findIndex((t) => t.id === data.tileId);
+    if (tileIndex === -1) return;
+
+    const targetTile = concealed[tileIndex];
+    // Verify player has all 4 of this tile in hand
+    const matchingCount = concealed.filter((t) => tileSortKey(t) === tileSortKey(targetTile)).length;
+    if (matchingCount < 4) return;
+
+    this.applyKanClosed(seat, targetTile);
+  }
+
+  private handleCallKanAdded(client: Client, data: { tileId: string }) {
+    if (this.gamePhase.type !== 'TURN_DECISION') return;
+    const seat = this.getSeatForClient(client);
+    if (seat === null || seat !== this.activeSeat) return;
+
+    const concealed = this.concealedTiles.get(seat)!;
+    const tileIndex = concealed.findIndex((t) => t.id === data.tileId);
+    if (tileIndex === -1) return;
+
+    const targetTile = concealed[tileIndex];
+    const melds = this.seatMelds.get(seat)!;
+
+    // Find a pon meld that matches this tile
+    const ponMeldIndex = melds.findIndex(
+      (m) => m.type === 'pon' && m.tiles.some((t) => tileSortKey(t) === tileSortKey(targetTile)),
+    );
+    if (ponMeldIndex === -1) return;
+
+    this.applyKanAdded(seat, ponMeldIndex, targetTile);
   }
 
   private checkReactionResolution() {
@@ -994,8 +1093,8 @@ export class MahjongRoom extends Room<GameState> {
       if (seatSchema) seatSchema.hasPassedReaction = false;
     }
 
-    // Resolve by priority: ron > kan-open > pon > chi
-    const priority = RIICHI_PRESET.reactionPriority;
+    // Resolve by priority: kan-open > pon > chi (no ron in HK rules)
+    const priority = HONG_KONG_PRESET.reactionPriority;
     let winningResponse: { seat: number; response: ReactionResponse } | null = null;
 
     for (const pType of priority) {
@@ -1018,8 +1117,8 @@ export class MahjongRoom extends Room<GameState> {
     const { seat: winnerSeat, response } = winningResponse;
 
     switch (response.type) {
-      case 'ron':
-        this.handleRonWin(winnerSeat, reaction.discardSeat, reaction.discardTile);
+      case 'kan-open':
+        this.applyKanOpen(winnerSeat, reaction.discardSeat, reaction.discardTile);
         break;
       case 'pon':
         this.applyPon(winnerSeat, reaction.discardSeat, reaction.discardTile);
@@ -1028,8 +1127,10 @@ export class MahjongRoom extends Room<GameState> {
         this.applyChi(winnerSeat, reaction.discardSeat, reaction.discardTile, response.tiles);
         break;
       case 'kan-open':
-        // Simplified: treat like pon for Phase 1
         this.applyPon(winnerSeat, reaction.discardSeat, reaction.discardTile);
+        break;
+      default:
+        this.advanceToNextPlayer(reaction.discardSeat);
         break;
     }
   }
@@ -1037,23 +1138,6 @@ export class MahjongRoom extends Room<GameState> {
   // ---------------------------------------------------------------------------
   // Win resolution
   // ---------------------------------------------------------------------------
-
-  private handleRonWin(winnerSeat: number, discardSeat: number, discardTile: TileDef) {
-    const concealed = [...this.concealedTiles.get(winnerSeat)!, discardTile];
-    const melds = this.seatMelds.get(winnerSeat)!;
-
-    if (!isValidWinningShape(concealed, melds.length)) return;
-
-    const seatWind = MahjongRoom.SEAT_WINDS[winnerSeat];
-    const patterns = evaluatePatterns(concealed, melds, 'ron', seatWind, this.roundWind);
-
-    if (patterns.length === 0) return; // No yaku = invalid win declaration
-
-    const isDealer = winnerSeat === this.dealerSeat;
-    const result = settleHand(winnerSeat, 'ron', discardSeat, patterns, 30, 4, isDealer);
-
-    this.applyWinResult(winnerSeat, 'ron', result);
-  }
 
   private handleDeclareWinTsumo(client: Client) {
     const seat = this.getSeatForClient(client);
@@ -1063,63 +1147,93 @@ export class MahjongRoom extends Room<GameState> {
     const concealed = this.concealedTiles.get(seat)!;
     const melds = this.seatMelds.get(seat)!;
 
-    if (!isValidWinningShape([...concealed], melds.length)) return;
+    // Validate with decomposition
+    const decomposition = decomposeWinningHand([...concealed], melds.length);
+    if (!decomposition) return;
 
     const seatWind = MahjongRoom.SEAT_WINDS[seat];
-    const patterns = evaluatePatterns(concealed, melds, 'tsumo', seatWind, this.roundWind);
-
-    if (patterns.length === 0) return; // No yaku
-
+    const patterns = evaluateHKPatterns(concealed, melds, 'tsumo', seatWind, this.roundWind);
+    const hasGong = melds.some(m => m.type.startsWith('kan'));
     const isDealer = seat === this.dealerSeat;
-    const result = settleHand(seat, 'tsumo', undefined, patterns, 30, 4, isDealer);
+    const scoreResult = calculateHKScore(patterns, hasGong, isDealer);
 
-    this.applyWinResult(seat, 'tsumo', result);
+    this.applyHKWinResult(seat, 'tsumo', patterns, scoreResult, hasGong, decomposition);
   }
 
-  private applyWinResult(winnerSeat: number, winType: 'ron' | 'tsumo', result: HandResult) {
-    // Apply score transfers
-    for (const transfer of result.settlement) {
-      this.scores[transfer.from] -= transfer.amount;
-      this.scores[transfer.to] += transfer.amount;
+  private applyHKWinResult(
+    winnerSeat: number,
+    winType: 'tsumo',
+    patterns: HKFanMatch[],
+    scoreResult: HKScoreBreakdown,
+    hasGong: boolean,
+    decomposition: HandDecomposition,
+  ) {
+    // Apply score transfers: winner gets paid by all others
+    const isDealer = winnerSeat === this.dealerSeat;
+    for (let i = 0; i < 4; i++) {
+      if (i === winnerSeat) continue;
+      const amount = (isDealer && i !== winnerSeat)
+        ? scoreResult.totalPerPlayer * 2 // Non-winners: dealer pays double, others pay base
+        : scoreResult.totalPerPlayer;
+      // Actually recalculate properly
+      let payAmount: number;
+      if (isDealer) {
+        payAmount = scoreResult.totalPerPlayer;
+      } else {
+        payAmount = i === this.dealerSeat ? scoreResult.totalPerPlayer * 2 : scoreResult.totalPerPlayer;
+      }
+      this.scores[i] -= payAmount;
+      this.scores[winnerSeat] += payAmount;
     }
 
-    // RESOLUTION -> HAND_END
-    const resolutionPhase: GamePhase = {
-      type: 'RESOLUTION',
-      winner: winnerSeat,
-      winType,
-    };
-    if (canTransition(this.gamePhase, resolutionPhase)) {
-      this.setPhase(resolutionPhase);
-    }
-
+    // Transition directly to HAND_END
     const handEndPhase: GamePhase = {
       type: 'HAND_END',
       endReason: 'win',
-      result,
+      result: null as any,
     };
     if (canTransition(this.gamePhase, handEndPhase)) {
       this.setPhase(handEndPhase);
       this.state.winInfo = JSON.stringify({
         winner: winnerSeat,
         winType,
-        han: result.han,
-        fu: result.fu,
-        total: result.score.total,
-        patterns: result.patterns.map((p) => ({ id: p.id, name: p.name, hanValue: p.hanValue })),
-        settlement: result.settlement,
+        fan: scoreResult.fan,
+        total: scoreResult.total,
+        hasGong,
+        gongMultiplier: scoreResult.gongMultiplier,
+        patterns: patterns.map((p) => ({ id: p.id, name: p.name, fanValue: p.fanValue })),
       });
       this.syncSchemaFromInternal();
 
-      // Broadcast win result to all clients
+      const winnerMelds = this.seatMelds.get(winnerSeat) ?? [];
+      // Build sorted decomposed groups: concealed melds + pair, then open melds
+      const concealedGroups = decomposition.melds.map(m => ({
+        type: m.type,
+        tileIds: m.tiles.sort((a, b) => tileSortKey(a).localeCompare(tileSortKey(b))).map(t => t.id),
+      }));
+      if (decomposition.pair.length > 0) {
+        concealedGroups.push({
+          type: 'pair',
+          tileIds: decomposition.pair.sort((a, b) => tileSortKey(a).localeCompare(tileSortKey(b))).map(t => t.id),
+        });
+      }
+      const openMeldGroups = winnerMelds.map(m => ({
+        type: m.type,
+        tileIds: m.tiles.sort((a, b) => tileSortKey(a).localeCompare(tileSortKey(b))).map(t => t.id),
+      }));
       this.broadcast('hand-result', {
         winner: winnerSeat,
         winType,
-        han: result.han,
-        fu: result.fu,
-        total: result.score.total,
-        patterns: result.patterns.map((p) => ({ id: p.id, name: p.name, hanValue: p.hanValue })),
-        settlement: result.settlement,
+        fan: scoreResult.fan,
+        total: scoreResult.total,
+        hasGong,
+        gongMultiplier: scoreResult.gongMultiplier,
+        patterns: patterns.map((p) => ({ id: p.id, name: p.name, fanValue: p.fanValue })),
+        winnerTiles: (this.concealedTiles.get(winnerSeat) ?? [])
+          .sort((a, b) => tileSortKey(a).localeCompare(tileSortKey(b)))
+          .map(t => t.id),
+        winnerMelds: winnerMelds.map(m => ({ type: m.type, tileIds: m.tiles.map(t => t.id) })),
+        handGroups: [...concealedGroups, ...openMeldGroups],
       });
     }
   }
@@ -1283,6 +1397,11 @@ export class MahjongRoom extends Room<GameState> {
     const tile2 = concealed[tileIndices[1]];
     if (!tile1 || !tile2) return;
 
+    // Validate the three tiles form a consecutive sequence in the same suit
+    if (!discardTile.suit || !discardTile.rank || tile1.suit !== discardTile.suit || tile2.suit !== discardTile.suit) return;
+    const ranks = [tile1.rank!, tile2.rank!, discardTile.rank!].sort((a, b) => a - b);
+    if (ranks[2] - ranks[0] !== 2 || ranks[1] - ranks[0] !== 1) return;
+
     const remaining = concealed.filter(
       (_, i) => i !== tileIndices[0] && i !== tileIndices[1],
     );
@@ -1324,6 +1443,140 @@ export class MahjongRoom extends Room<GameState> {
 
     if (this.isBot(callerSeat)) {
       this.scheduleBotAction(callerSeat);
+    }
+  }
+
+  private applyKanOpen(callerSeat: number, discardSeat: number, discardTile: TileDef) {
+    const concealed = this.concealedTiles.get(callerSeat)!;
+
+    // Find 3 matching tiles in concealed hand
+    const matching: TileDef[] = [];
+    const remaining: TileDef[] = [];
+    let found = 0;
+
+    for (const tile of concealed) {
+      if (found < 3 && tileSortKey(tile) === tileSortKey(discardTile)) {
+        matching.push(tile);
+        found++;
+      } else {
+        remaining.push(tile);
+      }
+    }
+
+    if (found < 3) return; // Safety check
+
+    this.concealedTiles.set(callerSeat, remaining);
+
+    const meld: Meld = {
+      type: 'kan-open',
+      tiles: [...matching, discardTile],
+      calledFromSeat: discardSeat,
+      isConcealed: false,
+    };
+    this.seatMelds.get(callerSeat)!.push(meld);
+    this.incrementHandVersion(callerSeat);
+
+    // Remove the called tile from the discarder's river
+    const river = this.seatRivers.get(discardSeat)!;
+    if (river.length > 0) {
+      river.pop();
+    }
+
+    // Draw a replacement tile from the dead wall
+    this.drawReplacementAndContinue(callerSeat, meld);
+  }
+
+  private applyKanClosed(seat: number, targetTile: TileDef) {
+    const concealed = this.concealedTiles.get(seat)!;
+
+    // Remove all 4 matching tiles from concealed
+    const remaining = concealed.filter(
+      (t) => tileSortKey(t) !== tileSortKey(targetTile),
+    );
+    this.concealedTiles.set(seat, remaining);
+
+    // Create 4 tiles for the kan (use the actual tile objects from concealed)
+    const matching = concealed.filter(
+      (t) => tileSortKey(t) === tileSortKey(targetTile),
+    );
+
+    const meld: Meld = {
+      type: 'kan-closed',
+      tiles: matching.slice(0, 4),
+      isConcealed: true,
+    };
+    this.seatMelds.get(seat)!.push(meld);
+    this.incrementHandVersion(seat);
+
+    // Draw a replacement tile from the dead wall
+    this.drawReplacementAndContinue(seat, meld);
+  }
+
+  private applyKanAdded(seat: number, ponMeldIndex: number, addedTile: TileDef) {
+    const concealed = this.concealedTiles.get(seat)!;
+    const melds = this.seatMelds.get(seat)!;
+
+    // Remove the added tile from concealed
+    const tileIndex = concealed.findIndex((t) => t.id === addedTile.id);
+    if (tileIndex === -1) return;
+    concealed.splice(tileIndex, 1);
+    this.incrementHandVersion(seat);
+
+    // Upgrade the pon meld to a kan-added
+    const ponMeld = melds[ponMeldIndex];
+    melds[ponMeldIndex] = {
+      type: 'kan-added',
+      tiles: [...ponMeld.tiles, addedTile],
+      calledFromSeat: ponMeld.calledFromSeat,
+      isConcealed: false,
+    };
+
+    // Draw a replacement tile from the dead wall
+    this.drawReplacementAndContinue(seat, melds[ponMeldIndex]);
+  }
+
+  private drawReplacementAndContinue(seat: number, meld: Meld) {
+    if (!this.wall) return;
+
+    // Draw replacement tile from the dead wall
+    const replResult = drawReplacementTile(this.wall);
+    if (replResult.tile) {
+      this.wall = replResult.wall;
+      const replTile = replResult.tile;
+      if (this.wildCardTile) {
+        replTile.isWild = tileSortKey(replTile) === tileSortKey(this.wildCardTile);
+      }
+      this.concealedTiles.get(seat)!.push(replTile);
+    }
+
+    // Add a new dora indicator after kan
+    const newDoraIndex = this.wall.deadWallStart;
+    if (newDoraIndex < this.wall.tiles.length && !this.doraIndicators.some(t => tileSortKey(t) === tileSortKey(this.wall!.tiles[newDoraIndex]))) {
+      this.doraIndicators.push(this.wall.tiles[newDoraIndex]);
+    }
+
+    this.activeSeat = seat;
+    this.setPhase({
+      type: 'TURN_DECISION',
+      activeSeat: seat,
+      legalActions: ['DISCARD_TILE'],
+    });
+    this.syncSchemaFromInternal();
+
+    const callerClient = this.getClientForSeat(seat);
+    if (callerClient) {
+      callerClient.send('legal-actions', { actions: ['DISCARD_TILE'] });
+      callerClient.send('meld-applied', {
+        meld: { type: meld.type, tileIds: meld.tiles.map((t) => t.id) },
+        handVersion: this.handVersions[seat],
+      });
+      if (replResult.tile) {
+        callerClient.send('tile-drawn', { tileId: replResult.tile.id, handVersion: this.handVersions[seat] });
+      }
+    }
+
+    if (this.isBot(seat)) {
+      this.scheduleBotAction(seat);
     }
   }
 

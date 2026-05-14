@@ -17,16 +17,16 @@ function parseTileId(id: string): TileDef {
   return { id, isFlower: false };
 }
 
-interface DoraDisplayProps {
-  doraIndicatorIds: string[];
+interface WildCardDisplayProps {
+  wildCardTileId?: string | null;
 }
 
-export function DoraDisplay({ doraIndicatorIds }: DoraDisplayProps) {
-  if (doraIndicatorIds.length === 0) return null;
+export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
+  if (!wildCardTileId) return null;
 
   const renderTile = (id: string) => {
     const tile = parseTileId(id);
-    const props = { width: 28, height: 38 };
+    const props = { width: 48, height: 66 };
     if (tile.suit === 'man') return <ManTile key={id} rank={tile.rank!} {...props} />;
     if (tile.suit === 'pin') return <PinTile key={id} rank={tile.rank!} {...props} />;
     if (tile.suit === 'sou') return <SouTile key={id} rank={tile.rank!} {...props} />;
@@ -37,18 +37,22 @@ export function DoraDisplay({ doraIndicatorIds }: DoraDisplayProps) {
   return (
     <div style={{
       position: 'absolute',
-      top: '45%',
+      top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: '0.25rem',
-      zIndex: 1,
+      gap: '4px',
+      zIndex: 3,
+      background: 'rgba(0,0,0,0.4)',
+      padding: '6px 14px 8px',
+      borderRadius: '10px',
+      border: '1px solid rgba(251,191,36,0.3)',
     }}>
-      <div style={{ fontSize: '0.5625rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>Dora</div>
-      <div style={{ display: 'flex', gap: '2px' }}>
-        {doraIndicatorIds.map(id => renderTile(id))}
+      <div style={{ fontSize: '0.5625rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#fbbf24', fontWeight: 700 }}>Wild</div>
+      <div style={{ border: '2px solid #fbbf24', borderRadius: '8px', boxShadow: '0 0 12px rgba(251,191,36,0.5)' }}>
+        {renderTile(wildCardTileId)}
       </div>
     </div>
   );

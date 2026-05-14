@@ -2,7 +2,7 @@ import { ActionType, ActionPayload } from './actions.js';
 import { RoundState } from '../models/round.js';
 import { RulesPreset } from '../rules/preset.js';
 import { isValidWinningShape } from '../scoring/validator.js';
-import { TileDef, Suit, WindName, DragonName } from '../models/tile.js';
+import { TileDef, Suit, WindName, DragonName, tileSortKey } from '../models/tile.js';
 
 export function legalActionsForSeat(
   round: RoundState,
@@ -19,12 +19,14 @@ export function legalActionsForSeat(
     actions.push('DRAW_TILE');
   }
 
-  // TURN_DECISION: active seat can discard, declare win tsumo
+  // TURN_DECISION: active seat can discard, declare win tsumo, kan-closed, kan-added
   if (round.activeSeat === seatIndex) {
     actions.push('DISCARD_TILE');
     if (canTsumo(round, seatIndex)) {
       actions.push('DECLARE_WIN_TSUMO');
     }
+    if (canKanClosed(round, seatIndex, preset)) actions.push('CALL_KAN_CLOSED');
+    if (canKanAdded(round, seatIndex, preset)) actions.push('CALL_KAN_ADDED');
   }
 
   // Reaction window: eligible seats can pass or claim
@@ -66,6 +68,38 @@ function canChi(round: RoundState, seatIndex: number, preset: RulesPreset): bool
 function canKanOpen(round: RoundState, seatIndex: number, preset: RulesPreset): boolean {
   if (!preset.allowKan || !preset.allowOpenHand) return false;
   return round.reaction !== null;
+}
+
+function canKanClosed(round: RoundState, seatIndex: number, preset: RulesPreset): boolean {
+  if (!preset.allowKan) return false;
+  if (round.activeSeat !== seatIndex) return false;
+  // Check if player has 4 of the same tile in concealed hand
+  const seatData = round.seats[seatIndex];
+  if (!seatData.concealedTiles) return false;
+  const counts = new Map<string, number>();
+  for (const t of seatData.concealedTiles) {
+    const key = tileSortKey(t);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  for (const [, count] of counts) {
+    if (count === 4) return true;
+  }
+  return false;
+}
+
+function canKanAdded(round: RoundState, seatIndex: number, preset: RulesPreset): boolean {
+  if (!preset.allowKan) return false;
+  if (round.activeSeat !== seatIndex) return false;
+  const seatData = round.seats[seatIndex];
+  if (!seatData.concealedTiles) return false;
+  // Check if any pon meld has a matching tile in concealed hand
+  for (const meld of seatData.melds) {
+    if (meld.type === 'pon') {
+      const ponKey = tileSortKey(meld.tiles[0]);
+      if (seatData.concealedTiles.some((t) => tileSortKey(t) === ponKey)) return true;
+    }
+  }
+  return false;
 }
 
 function isReactionResolved(reaction: unknown): boolean {

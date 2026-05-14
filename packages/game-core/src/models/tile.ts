@@ -11,6 +11,7 @@ export interface TileDef {
   honorName?: WindName | DragonName;
   isFlower: boolean;
   flowerIndex?: number;
+  isWild?: boolean;
 }
 
 export function createSuitedTile(suit: Suit, rank: number, instance: number): TileDef {

@@ -28,7 +28,7 @@ interface MeldAreaProps {
 }
 
 function renderSmallTile(tile: TileDef) {
-  const props = { width: 24, height: 32 };
+  const props = { width: 42, height: 58 };
   if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...props} />;
   if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...props} />;
   if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...props} />;
@@ -38,18 +38,18 @@ function renderSmallTile(tile: TileDef) {
 
 export function MeldArea({ melds }: MeldAreaProps) {
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
       {melds.map((meld, i) => (
         <div key={i} style={{
           display: 'flex',
-          gap: '1px',
-          padding: '2px',
-          borderRadius: '4px',
+          gap: '2px',
+          padding: '3px',
+          borderRadius: '6px',
           background: 'var(--surface-panel)',
           border: '1px solid var(--border-subtle)',
         }}>
           {(!meld.tiles || meld.tiles.length === 0) && (
-            <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', padding: '0 0.25rem' }}>{meld.type}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0 0.375rem' }}>{meld.type}</span>
           )}
           {meld.tiles && meld.tiles.length > 0 && meld.tiles.map((t: any, j: number) => {
             const tileId = typeof t === 'string' ? t : t.id;

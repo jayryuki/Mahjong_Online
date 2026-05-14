@@ -4,12 +4,13 @@ interface RulesSummaryProps {
   presetName?: string;
 }
 
-export function RulesSummary({ presetName = 'Riichi' }: RulesSummaryProps) {
+export function RulesSummary({ presetName = 'Hong Kong' }: RulesSummaryProps) {
   const rules = [
     { label: 'Variant', value: presetName },
     { label: 'Players', value: '4' },
-    { label: 'Flowers', value: 'No' },
-    { label: 'Min Han', value: '1' },
+    { label: 'Win by', value: 'Self-draw only' },
+    { label: 'Wild Cards', value: 'Yes' },
+    { label: 'GONG Doubles', value: 'Yes' },
   ];
 
   return (

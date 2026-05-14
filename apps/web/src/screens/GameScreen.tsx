@@ -2,9 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TableLayout } from '../components/table/TableLayout.js';
 import { HandArea } from '../components/table/HandArea.js';
+import { MeldArea } from '../components/table/MeldArea.js';
 import { ActionPrompt } from '../components/actions/ActionPrompt.js';
 import { Button } from '../components/common/Button.js';
+import { ChatPanel, ChatMessageData } from '../components/common/ChatPanel.js';
+import { ManTile, PinTile, SouTile, HonorTile } from '@mahjong/ui';
 import { TileDef } from '@mahjong/game-core';
+import { playTurnSound, playReactionSound } from '../lib/sounds.js';
 
 // Parse a tile ID string (e.g. "man-1-0", "pin-5-3", "east-0") into a TileDef object
 function parseTileId(id: string): TileDef {
@@ -98,6 +102,15 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   // Reaction options (when someone discards and we can react)
   const [reactionOptions, setReactionOptions] = useState<string[]>([]);
 
+  // Chi tile options (pairs of tile IDs that can form a sequence with the discard)
+  const [chiTileOptions, setChiTileOptions] = useState<string[][]>([]);
+
+  // Wild card tile ID
+  const [wildCardTileId, setWildCardTileId] = useState<string | null>(null);
+
+  // Last discard tile when reacting
+  const [reactionDiscardTileId, setReactionDiscardTileId] = useState<string | null>(null);
+
   // Current phase
   const [phase, setPhase] = useState<string>('LOBBY');
 
@@ -116,8 +129,14 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   // Status message
   const [statusMessage, setStatusMessage] = useState<string>('Connecting...');
 
+  // Whether it's currently the player's turn (for visual emphasis)
+  const [isMyTurn, setIsMyTurn] = useState(false);
+
   // Track seat mapping from state
   const seatMapRef = useRef<Map<string, number>>(new Map());
+
+  // Chat messages
+  const [chatMessages, setChatMessages] = useState<ChatMessageData[]>([]);
 
   // Listen for state changes
   useEffect(() => {
@@ -143,6 +162,20 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         setMySeat(mySeatIdx);
         mySeatRef.current = mySeatIdx;
       }
+
+      // Sync chat messages from schema
+      if (state.chatMessages) {
+        const msgs: ChatMessageData[] = [];
+        for (const m of Array.from(state.chatMessages as Iterable<any>)) {
+          msgs.push({
+            senderId: m.senderId,
+            senderName: m.senderName,
+            text: m.text,
+            timestamp: m.timestamp,
+          });
+        }
+        setChatMessages(msgs);
+      }
     };
 
     room.onStateChange(onStateChange);
@@ -165,15 +198,23 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
     const unsubs: Array<() => void> = [];
 
-    const onHandState = (data: { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }>; handVersion: number; phase?: string; activeSeat?: number; legalActions?: string[] }) => {
+    const onHandState = (data: { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }>; handVersion: number; phase?: string; activeSeat?: number; legalActions?: string[]; wildCardTileId?: string | null }) => {
       const tiles = data.tiles.map(parseTileId);
       tiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
       setHandTiles(tiles);
       setHandVersion(data.handVersion);
       setHandResult(null);
+      if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
 
       // Reconstruct turn state from server response
       if (data.phase && data.legalActions) {
+        const myTurn = (data.phase === 'TURN_DRAW' || data.phase === 'TURN_DECISION') && data.activeSeat === mySeatRef.current;
+        if (myTurn) {
+          setIsMyTurn(true);
+          playTurnSound();
+        } else if (data.phase !== 'REACTION_WINDOW') {
+          setIsMyTurn(false);
+        }
         if (data.phase === 'TURN_DRAW' && data.activeSeat === mySeatRef.current) {
           setLegalActions(data.legalActions);
           setStatusMessage('Your turn - Draw a tile!');
@@ -187,24 +228,30 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           setStatusMessage(`Seat ${data.activeSeat ?? '?'} is playing...`);
         }
       } else {
+        setIsMyTurn(false);
         setStatusMessage('Hand synced.');
       }
     };
 
-    const onDeal = (data: { tiles: string[]; handVersion?: number }) => {
+    const onDeal = (data: { tiles: string[]; handVersion?: number; wildCardTileId?: string | null }) => {
       const tiles = data.tiles.map(parseTileId);
       tiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
       setHandTiles(tiles);
       if (data.handVersion !== undefined) setHandVersion(data.handVersion);
       setStatusMessage('Hand dealt! Waiting for your turn...');
       setHandResult(null);
+      setIsMyTurn(false);
+      if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
     };
 
     const onYourTurnDraw = (data: { seat: number }) => {
       if (data.seat === mySeatRef.current) {
+        setIsMyTurn(true);
+        playTurnSound();
         setStatusMessage('Your turn - Draw a tile!');
         setLegalActions(['DRAW_TILE']);
       } else {
+        setIsMyTurn(false);
         setStatusMessage(`Seat ${data.seat} is drawing...`);
         setLegalActions([]);
       }
@@ -226,16 +273,20 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setLegalActions(data.actions);
     };
 
-    const onReactionOptions = (data: { discardSeat: number; discardTileId: string; actions: string[] }) => {
+    const onReactionOptions = (data: { discardSeat: number; discardTileId: string; actions: string[]; chiOptions?: string[][] }) => {
       setReactionOptions(data.actions);
+      setChiTileOptions(data.chiOptions ?? []);
+      setReactionDiscardTileId(data.discardTileId);
       setStatusMessage(`Seat ${data.discardSeat} discarded. You can react!`);
+      playReactionSound();
     };
 
     const onMeldApplied = (data: { meld: { type: string; tileIds: string[] }; handVersion?: number }) => {
       const meldTileIds = new Set(data.meld.tileIds);
       setHandTiles((prev) => prev.filter((t) => !meldTileIds.has(t.id)));
       if (data.handVersion !== undefined) setHandVersion(data.handVersion);
-      setStatusMessage(`Meld applied: ${data.meld.type}`);
+      const meldLabel = data.meld.type === 'chi' ? 'Chi' : data.meld.type === 'pon' ? 'Pon' : 'Kan';
+      setStatusMessage(`${meldLabel} called! You must discard a tile.`);
     };
 
     const onHandResult = (data: any) => {
@@ -246,12 +297,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       if (data.endReason === 'exhaustive-draw') {
         setStatusMessage('Exhaustive draw! No one wins this hand.');
       } else {
-        setStatusMessage(`Hand over! ${data.winType === 'ron' ? 'Ron' : 'Tsumo'} by seat ${data.winner}!`);
+        setStatusMessage(`Hand over! Tsumo by seat ${data.winner}!`);
       }
-    };
-
-    const onRiichiDeclared = (data: { seat: number }) => {
-      setStatusMessage(`Seat ${data.seat} declared Riichi!`);
     };
 
     const onMatchEnd = (data: { finalScores: Array<{ seatIndex: number; points: number }> }) => {
@@ -267,7 +314,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     unsubs.push(room.onMessage('reaction-options', onReactionOptions));
     unsubs.push(room.onMessage('meld-applied', onMeldApplied));
     unsubs.push(room.onMessage('hand-result', onHandResult));
-    unsubs.push(room.onMessage('riichi-declared', onRiichiDeclared));
     unsubs.push(room.onMessage('match-end', onMatchEnd));
 
     return () => {
@@ -278,8 +324,10 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   }, [room]);
 
   // Handle actions from ActionPrompt
-  const handleAction = useCallback((action: string) => {
+  const handleAction = useCallback((action: string, chiTileIds?: [string, string]) => {
     if (!room) return;
+
+    setIsMyTurn(false);
 
     switch (action) {
       case 'DRAW_TILE':
@@ -290,35 +338,75 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       case 'PASS_REACTION':
         room.send('pass-reaction');
         setReactionOptions([]);
+        setReactionDiscardTileId(null);
         setStatusMessage('Passed.');
         break;
       case 'CALL_PON':
         room.send('call-pon');
         setReactionOptions([]);
+        setReactionDiscardTileId(null);
         setStatusMessage('Calling Pon!');
         break;
-      case 'CALL_CHI':
-        room.send('call-chi', { tiles: [0, 1] }); // Simplified chi - TODO: proper tile selection
+      case 'CALL_CHI': {
+        if (chiTileIds) {
+          room.send('call-chi', { tileIds: chiTileIds });
+        } else if (chiTileOptions.length > 0) {
+          room.send('call-chi', { tileIds: [chiTileOptions[0][0], chiTileOptions[0][1]] as [string, string] });
+        }
         setReactionOptions([]);
+        setReactionDiscardTileId(null);
         setStatusMessage('Calling Chi!');
         break;
-      case 'DECLARE_WIN_RON':
-        room.send('declare-win-ron');
-        setReactionOptions([]);
-        setStatusMessage('Declaring Ron!');
-        break;
+      }
       case 'DECLARE_WIN_TSUMO':
         room.send('declare-win-tsumo');
         setLegalActions([]);
         setStatusMessage('Declaring Tsumo!');
         break;
-      case 'DECLARE_RIICHI':
-        room.send('declare-riichi');
-        setLegalActions([]);
-        setStatusMessage('Declaring Riichi!');
+      case 'CALL_KAN_OPEN':
+        room.send('call-kan-open');
+        setReactionOptions([]);
+        setReactionDiscardTileId(null);
+        setStatusMessage('Calling Kan (Open)!');
         break;
+      case 'CALL_KAN_CLOSED': {
+        // Find the first set of 4 identical tiles and send one tile ID
+        const counts = new Map<string, { key: string; id: string; count: number }>();
+        for (const t of handTiles) {
+          const k = tileKey(t);
+          const entry = counts.get(k);
+          if (entry) { entry.count++; } else { counts.set(k, { key: k, id: t.id, count: 1 }); }
+        }
+        const kanTile = Array.from(counts.values()).find(e => e.count === 4);
+        if (kanTile) {
+          room.send('call-kan-closed', { tileId: kanTile.id });
+          setLegalActions([]);
+          setStatusMessage('Calling Kan (Closed)!');
+        }
+        break;
+      }
+      case 'CALL_KAN_ADDED': {
+        // Find a pon meld tile that has a matching tile in hand (from roomState)
+        const seatData = roomState?.seats ? Array.from(roomState.seats.values() as Iterable<SeatData>) : [];
+        const mySeatData = seatData.find((s: SeatData) => s.seatIndex === mySeatRef.current);
+        const meldTypes: string[] = mySeatData?.meldTypes ? mySeatData.meldTypes.split(',').filter(Boolean) : [];
+        const meldTileIdsStr = mySeatData?.meldTileIds ?? '';
+        const meldGroups = meldTileIdsStr ? meldTileIdsStr.split(',').filter(Boolean) : [];
+        const ponIdx = meldTypes.indexOf('pon');
+        if (ponIdx >= 0 && meldGroups[ponIdx]) {
+          const ponTileId = meldGroups[ponIdx].split('|')[0];
+          const ponTileKey = tileKey(parseTileId(ponTileId));
+          const matchTile = handTiles.find(t => tileKey(t) === ponTileKey);
+          if (matchTile) {
+            room.send('call-kan-added', { tileId: matchTile.id });
+            setLegalActions([]);
+            setStatusMessage('Calling Kan (Added)!');
+          }
+        }
+        break;
+      }
     }
-  }, [room]);
+  }, [room, chiTileOptions, handTiles, roomState]);
 
   // Handle discard
   const handleDiscard = useCallback((tile: TileDef) => {
@@ -327,10 +415,15 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     setHandTiles((prev) => prev.filter((t) => t.id !== tile.id));
     setDrawnTileId(null);
     setLegalActions([]);
+    setIsMyTurn(false);
     setStatusMessage('Tile discarded. Waiting...');
   }, [room]);
 
-  // Build seat display data from room state
+  // Chat send handler
+  const handleChatSend = useCallback((text: string) => {
+    room?.send('chat', { text });
+  }, [room]);
+
   const buildSeatDisplays = (): SeatDisplay[] => {
     if (!roomState) {
       return [0, 1, 2, 3].map((i) => ({
@@ -396,7 +489,10 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   const seatDisplays = buildSeatDisplays();
   const allActions = [...legalActions, ...reactionOptions];
 
-  // No room - shouldn't happen when rendered from lobby
+  // My seat display for the bottom panel
+  const mySeatDisplay = seatDisplays.find(s => s.seatIndex === mySeat);
+
+  // No room
   if (!room) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
@@ -406,8 +502,47 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     );
   }
 
+  // Render a tile for the winning hand display
+  const renderResultTile = (tile: TileDef, w: number, h: number) => {
+    const props = { width: w, height: h };
+    if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...props} />;
+    if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...props} />;
+    if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...props} />;
+    if (tile.honorName) return <HonorTile honorName={tile.honorName} {...props} />;
+    return null;
+  };
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      {/* YOUR TURN banner */}
+      {isMyTurn && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          zIndex: 50,
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '0.75rem 1rem',
+          animation: 'turnBannerSlideIn 300ms ease-out',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            background: 'var(--accent-warm)',
+            color: '#fff',
+            padding: '0.75rem 2.5rem',
+            borderRadius: '0 0 14px 14px',
+            fontWeight: 800,
+            fontSize: '1.25rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            boxShadow: '0 4px 20px rgba(184, 92, 58, 0.6)',
+            animation: 'turnBannerPulse 2s ease-in-out infinite',
+          }}>
+            Your Turn
+          </div>
+        </div>
+      )}
+      {/* Table area - opponent seats + wild card */}
       <TableLayout
         seats={seatDisplays}
         mySeat={mySeat}
@@ -416,86 +551,167 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         roundWind={roomState?.roundWind ?? 'east'}
         handNumber={roomState?.handNumber ?? 1}
         honba={roomState?.honba ?? 0}
-        riichiSticks={roomState?.riichiSticks ?? 0}
+        riichiSticks={0}
         wallRemaining={roomState?.wallRemaining ?? 0}
-        doraIndicatorIds={roomState?.doraIndicators ? roomState.doraIndicators.split(',').filter(Boolean) : []}
-      >
-        {/* My hand area */}
-        <div style={{ position: 'absolute', bottom: '4rem', left: '50%', transform: 'translateX(-50%)' }}>
-          <HandArea tiles={handTiles} drawnTileId={drawnTileId} onDiscard={handleDiscard} />
-        </div>
-      </TableLayout>
+        wildCardTileId={wildCardTileId}
+      />
 
-      {/* Status message */}
+      {/* Chat overlay */}
+      <ChatPanel messages={chatMessages} mySessionId={mySessionId} onSend={handleChatSend} />
+
+      {/* Bottom panel: player info + hand + actions */}
       <div style={{
-        textAlign: 'center',
-        padding: '0.25rem 0.5rem',
-        fontSize: '0.75rem',
-        color: 'var(--text-secondary)',
+        flexShrink: 0,
         background: 'var(--surface-panel)',
-        borderBottom: '1px solid var(--border-subtle)',
+        borderTop: isMyTurn ? '3px solid var(--accent-warm)' : '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.375rem',
+        padding: '0.625rem 0.75rem',
+        maxHeight: '55dvh',
+        overflow: 'hidden',
+        ...(isMyTurn && { boxShadow: '0 -4px 24px rgba(184, 92, 58, 0.3)' }),
       }}>
-        {statusMessage}
-        {phase !== 'LOBBY' && <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>Phase: {phase}</span>}
-      </div>
+        {/* Player info row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem', minHeight: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600 }}>
+              {mySeatDisplay ? ['E','S','W','N'][mySeatDisplay.seatIndex] : ''} {mySeatDisplay?.isDealer && 'D'}
+            </span>
+            <span style={{ fontSize: '1rem', fontWeight: 600, color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)' }}>
+              {mySeatDisplay?.displayName}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', maxWidth: '16ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statusMessage}</span>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{mySeatDisplay?.score ?? 25000}</span>
+          </div>
+        </div>
 
-      {/* Action prompt */}
-      <ActionPrompt actions={allActions} onAction={handleAction} />
+        {/* My melds */}
+        {mySeatDisplay && mySeatDisplay.melds.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+            <MeldArea melds={mySeatDisplay.melds} />
+          </div>
+        )}
+
+        {/* Hand tiles */}
+        <HandArea tiles={handTiles} drawnTileId={drawnTileId} canDiscard={legalActions.includes('DISCARD_TILE')} onDiscard={handleDiscard} wildCardTileId={wildCardTileId} />
+
+        {/* Action buttons with discarded tile shown inline for reactions */}
+        {allActions.length > 0 && (() => {
+          const discardTile = reactionDiscardTileId ? parseTileId(reactionDiscardTileId) : null;
+          const isWild = discardTile && wildCardTileId && tileKey(discardTile) === tileKey(parseTileId(wildCardTileId));
+          const chiOpts = chiTileOptions.map(pair => ({
+            tileIds: [...pair, reactionDiscardTileId!],
+            label: pair.map(id => { const t = parseTileId(id); return t.suit ? `${t.rank}` : t.honorName ?? '?'; }).join('-'),
+          }));
+          return <ActionPrompt actions={allActions} onAction={handleAction} discardTile={discardTile} isWild={!!isWild} chiOptions={chiOpts} />;
+        })()}
+      </div>
 
       {/* Hand result overlay */}
       {handResult && (
         <div style={{
-          position: 'absolute',
+          position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)',
+          background: 'rgba(0,0,0,0.75)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '1rem',
           zIndex: 100,
+          padding: '1rem',
         }}>
           <div style={{
             background: 'var(--surface-panel)',
-            borderRadius: '12px',
-            padding: '2rem',
-            maxWidth: '400px',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            maxWidth: 'min(500px, 95vw)',
+            width: '100%',
             textAlign: 'center',
+            maxHeight: '90dvh',
+            overflow: 'auto',
           }}>
             {handResult.endReason === 'match-end' ? (
               <>
-                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 1rem 0' }}>Match Over</h2>
+                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 1rem 0', fontSize: '1.5rem' }}>Match Over</h2>
                 {handResult.finalScores?.map((s: any) => {
                   const seat = seatDisplays[s.seatIndex];
                   return (
-                    <div key={s.seatIndex} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0' }}>
-                      <span style={{ color: 'var(--text-primary)' }}>{seat?.displayName ?? `Seat ${s.seatIndex}`}</span>
-                      <span style={{ color: s.points >= 25000 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{s.points}</span>
+                    <div key={s.seatIndex} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '1.0625rem' }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{seat?.displayName ?? `Seat ${s.seatIndex}`}</span>
+                      <span style={{ color: s.points >= 25000 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{s.points}</span>
                     </div>
                   );
                 })}
               </>
             ) : handResult.endReason === 'exhaustive-draw' ? (
               <>
-                <h2 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Exhaustive Draw</h2>
-                <p style={{ color: 'var(--text-secondary)' }}>No one wins this hand.</p>
+                <h2 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0', fontSize: '1.5rem' }}>Exhaustive Draw</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.0625rem' }}>No one wins this hand.</p>
               </>
             ) : (
               <>
-                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 0.5rem 0' }}>
-                  {handResult.winType === 'ron' ? 'Ron!' : 'Tsumo!'}
+                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 0.75rem 0', fontSize: '1.75rem' }}>
+                  Tsumo!
                 </h2>
-                <p style={{ color: 'var(--text-primary)' }}>
-                  Seat {handResult.winner} wins with {handResult.han} han / {handResult.fu} fu
+                <p style={{ color: 'var(--text-primary)', fontSize: '1.0625rem', margin: '0 0 0.5rem 0' }}>
+                  {seatDisplays.find(s => s.seatIndex === handResult.winner)?.displayName ?? `Seat ${handResult.winner}`} wins with {handResult.fan} fan{handResult.hasGong ? ' + GONG (2x)' : ''}
                 </p>
-                <p style={{ color: 'var(--accent-warm)', fontSize: '1.5rem', fontWeight: 600 }}>
+
+                {/* Winning hand tiles - grouped by melds */}
+                {(handResult.handGroups || (handResult.winnerTiles && handResult.winnerTiles.length > 0)) && (
+                  <div style={{ margin: '1rem 0', padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderRadius: '10px' }}>
+                    <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>Winning Hand</div>
+                    {handResult.handGroups ? (
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        {handResult.handGroups.map((group: { type: string; tileIds: string[] }, gi: number) => (
+                          <div key={gi} style={{
+                            display: 'flex',
+                            gap: 2,
+                            padding: group.type === 'pair' ? '2px 6px' : '2px 4px',
+                            background: group.type === 'pair' ? 'rgba(251,191,36,0.12)' : group.type === 'chi' ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.06)',
+                            borderRadius: '6px',
+                            border: group.type === 'pair' ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                          }}>
+                            {group.tileIds.map((tid: string, ti: number) => (
+                              <div key={ti}>{renderResultTile(parseTileId(tid), 40, 56)}</div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        {handResult.winnerTiles.map((tid: string, i: number) => {
+                          const t = parseTileId(tid);
+                          return <div key={tid}>{renderResultTile(t, 40, 56)}</div>;
+                        })}
+                      </div>
+                    )}
+                    {handResult.winnerMelds && handResult.winnerMelds.length > 0 && !handResult.handGroups && (
+                      <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {handResult.winnerMelds.map((m: { type: string; tileIds: string[] }, mi: number) => (
+                          <div key={mi} style={{ display: 'flex', gap: 1, padding: '2px 4px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px' }}>
+                            {m.tileIds.map((tid: string, ti: number) => (
+                              <div key={ti}>{renderResultTile(parseTileId(tid), 32, 44)}</div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p style={{ color: 'var(--accent-warm)', fontSize: '1.75rem', fontWeight: 700, margin: '0.5rem 0' }}>
                   {handResult.total} points
                 </p>
                 {handResult.patterns && (
-                  <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     {handResult.patterns.map((p: any) => (
-                      <div key={p.id} style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                        {p.name} ({p.hanValue} han)
+                      <div key={p.id} style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)' }}>
+                        {p.name} <span style={{ color: 'var(--accent-warm)', fontWeight: 600 }}>({p.fanValue} fan)</span>
                       </div>
                     ))}
                   </div>
@@ -512,8 +728,10 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                     setHandResult(null);
                     setHandTiles([]);
                     setDrawnTileId(null);
+                    setWildCardTileId(null);
                   }
                 }}
+                size="lg"
                 style={{ marginTop: '1.5rem', width: '100%' }}
               >
                 {handResult.endReason === 'match-end' ? 'Back to Home' : 'Next Hand'}

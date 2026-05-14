@@ -6,6 +6,7 @@ import { ThemeToggle } from '../components/common/ThemeToggle.js';
 import { SeatMap } from '../components/lobby/SeatMap.js';
 import { PlayerList } from '../components/lobby/PlayerList.js';
 import { RulesSummary } from '../components/lobby/RulesSummary.js';
+import { ChatPanel } from '../components/lobby/ChatPanel.js';
 import { useGameClient } from '../hooks/useGameClient.js';
 import { setRoom } from '../lib/gameContext.js';
 import { GameScreen } from './GameScreen.js';
@@ -40,6 +41,7 @@ export function LobbyScreen() {
   }
 
   const players: any[] = state?.players ? Array.from(state.players.values()) : [];
+  const chatMessages: any[] = state?.chatMessages ? Array.from(state.chatMessages) : [];
   const mySessionId = room?.sessionId;
   const currentPlayer = players.find((p: any) => p.playerId === mySessionId);
   const isHost = currentPlayer?.isHost ?? false;
@@ -71,6 +73,14 @@ export function LobbyScreen() {
 
       <div style={{ marginTop: '1.5rem' }}>
         <RulesSummary />
+      </div>
+
+      <div style={{ marginTop: '1.5rem' }}>
+        <ChatPanel
+          messages={chatMessages}
+          mySessionId={mySessionId ?? ''}
+          onSend={(text) => room?.send('chat', { text })}
+        />
       </div>
 
       <div style={{ marginTop: '2rem', display: 'flex', gap: '0.75rem' }}>

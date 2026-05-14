@@ -94,5 +94,44 @@
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     margin: 0;
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
   }
+
+  @keyframes tileDrawIn {
+    0% { transform: translateY(-20px) scale(0.8); opacity: 0; }
+    60% { transform: translateY(2px) scale(1.02); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  @keyframes tileDropIn {
+    0% { transform: translateY(-30px) scale(1.1); opacity: 0; }
+    50% { transform: translateY(4px) scale(0.98); opacity: 1; }
+    100% { transform: translateY(-4px) scale(1); opacity: 1; }
+  }
+
+  @keyframes fadeInUp {
+    0% { transform: translateY(8px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  @keyframes activeGlow {
+    0%, 100% { box-shadow: 0 0 4px rgba(184, 92, 58, 0.3); }
+    50% { box-shadow: 0 0 12px rgba(184, 92, 58, 0.6); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+}
+
+@keyframes turnBannerPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+@keyframes turnBannerSlideIn {
+  0% { transform: translateY(-100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
 }

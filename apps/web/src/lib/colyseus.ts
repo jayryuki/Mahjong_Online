@@ -1,5 +1,5 @@
 import { Client } from 'colyseus.js';
 
-const SERVER_URL = import.meta.env.VITE_COLYSEUS_URL || 'ws://localhost:2567';
+const SERVER_URL = import.meta.env.VITE_COLYSEUS_URL || `ws://${window.location.hostname}:2567`;
 
 export const colyseusClient = new Client(SERVER_URL);

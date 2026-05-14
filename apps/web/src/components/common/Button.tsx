@@ -10,10 +10,10 @@ export function Button({ variant = 'primary', size = 'md', style, ...props }: Bu
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    fontWeight: 500,
+    fontWeight: 600,
     fontFamily: "'Inter', sans-serif",
-    fontSize: size === 'sm' ? '0.8125rem' : size === 'lg' ? '1rem' : '0.9375rem',
-    padding: size === 'sm' ? '0.5rem 1rem' : size === 'lg' ? '0.875rem 2.5rem' : '0.75rem 2rem',
+    fontSize: size === 'sm' ? '0.9375rem' : size === 'lg' ? '1.0625rem' : '1rem',
+    padding: size === 'sm' ? '0.625rem 1.25rem' : size === 'lg' ? '1rem 2.75rem' : '0.875rem 2.25rem',
     transition: 'all 120ms ease',
   };
 

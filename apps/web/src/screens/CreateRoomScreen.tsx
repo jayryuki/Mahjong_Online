@@ -7,12 +7,10 @@ import { ThemeToggle } from '../components/common/ThemeToggle.js';
 export function CreateRoomScreen() {
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState('riichi');
+  const [selectedPreset, setSelectedPreset] = useState('hong-kong');
 
   const presets = [
-    { id: 'riichi', name: 'Riichi', description: 'Japanese Mahjong — the most popular competitive variant', active: true },
-    { id: 'hong-kong', name: 'Hong Kong', description: 'Traditional Cantonese style (coming soon)', active: false },
-    { id: 'custom', name: 'Custom', description: 'Configure your own rules (coming soon)', active: false },
+    { id: 'hong-kong', name: 'Hong Kong', description: 'Traditional Cantonese style — self-draw only with wild cards', active: true },
   ];
 
   const handleCreate = async () => {

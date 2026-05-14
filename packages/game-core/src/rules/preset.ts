@@ -25,4 +25,8 @@ export interface RulesPreset {
   confirmDiscard: boolean;
   scoreDisplayVerbosity: 'minimal' | 'standard' | 'detailed';
   spectatorPolicy: 'none' | 'allow';
+  // Hong Kong rules extensions
+  wildCardEnabled: boolean;
+  selfDrawOnly: boolean;
+  gongDoubles: boolean;
 }

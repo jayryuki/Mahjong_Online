@@ -1,4 +1,11 @@
-import { Schema, type, MapSchema } from '@colyseus/schema';
+import { Schema, type, MapSchema, ArraySchema } from '@colyseus/schema';
+
+export class ChatMessageSchema extends Schema {
+  @type('string') senderId: string = '';
+  @type('string') senderName: string = '';
+  @type('string') text: string = '';
+  @type('uint32') timestamp: number = 0;
+}
 
 export class PlayerSchema extends Schema {
   @type('string') playerId: string = '';
@@ -37,9 +44,11 @@ export class GameState extends Schema {
   @type('uint8') riichiSticks: number = 0;
   @type({ map: PlayerSchema }) players = new MapSchema<PlayerSchema>();
   @type({ map: SeatRoundSchema }) seats = new MapSchema<SeatRoundSchema>();
+  @type([ChatMessageSchema]) chatMessages = new ArraySchema<ChatMessageSchema>();
 
   // Flattened phase details (Colyseus schema can't represent union types)
   @type('string') doraIndicators: string = '';
+  @type('string') wildCardTileId: string = '';
   @type('string') legalActions: string = '';
   @type('string') lastDiscardTileId: string = '';
   @type('uint8') lastDiscardSeat: number = 255;
