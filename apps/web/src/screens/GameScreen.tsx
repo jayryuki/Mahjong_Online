@@ -6,7 +6,9 @@ import { MeldArea } from '../components/table/MeldArea.js';
 import { ActionPrompt } from '../components/actions/ActionPrompt.js';
 import { Button } from '../components/common/Button.js';
 import { ChatPanel, ChatMessageData } from '../components/common/ChatPanel.js';
-import { ManTile, PinTile, SouTile, HonorTile } from '@mahjong/ui';
+import { TileRenderer } from '../components/common/TileRenderer.js';
+import { useScale } from '../hooks/useScale.js';
+import { clearRoom } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
 import { playTurnSound, playReactionSound } from '../lib/sounds.js';
 
@@ -137,6 +139,9 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   // Chat messages
   const [chatMessages, setChatMessages] = useState<ChatMessageData[]>([]);
+
+  // Leave confirmation
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // Listen for state changes
   useEffect(() => {
@@ -424,6 +429,13 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     room?.send('chat', { text });
   }, [room]);
 
+  // Leave game handler
+  const handleLeave = useCallback(() => {
+    try { room?.leave(); } catch {}
+    clearRoom();
+    navigate('/');
+  }, [room, navigate]);
+
   const buildSeatDisplays = (): SeatDisplay[] => {
     if (!roomState) {
       return [0, 1, 2, 3].map((i) => ({
@@ -448,11 +460,11 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       const seatData = seats.find((s) => s.seatIndex === i);
       const player = players.find((p) => p.seatIndex === i);
 
-      // Parse river tiles
+      // Parse river tiles — each seat's most recently discarded tile glows
       const riverTileIds: string[] = seatData?.riverTileIds ? seatData.riverTileIds.split(',').filter(Boolean) : [];
       const riverEntries = riverTileIds.map((id, idx) => ({
         tile: parseTileId(id),
-        isLastDiscard: idx === riverTileIds.length - 1,
+        isLastDiscard: idx === riverTileIds.length - 1 && riverTileIds.length > 0,
       }));
 
       // Parse melds
@@ -502,46 +514,37 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     );
   }
 
+  const scale = useScale();
+
   // Render a tile for the winning hand display
   const renderResultTile = (tile: TileDef, w: number, h: number) => {
-    const props = { width: w, height: h };
-    if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...props} />;
-    if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...props} />;
-    if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...props} />;
-    if (tile.honorName) return <HonorTile honorName={tile.honorName} {...props} />;
-    return null;
+    return <TileRenderer tile={tile} width={Math.round(w * scale)} height={Math.round(h * scale)} />;
   };
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-      {/* YOUR TURN banner */}
-      {isMyTurn && (
-        <div style={{
+      {/* Exit button */}
+      <button
+        onClick={() => setShowLeaveConfirm(true)}
+        style={{
           position: 'absolute',
-          top: 0, left: 0, right: 0,
-          zIndex: 50,
-          display: 'flex',
-          justifyContent: 'center',
-          padding: '0.75rem 1rem',
-          animation: 'turnBannerSlideIn 300ms ease-out',
-          pointerEvents: 'none',
-        }}>
-          <div style={{
-            background: 'var(--accent-warm)',
-            color: '#fff',
-            padding: '0.75rem 2.5rem',
-            borderRadius: '0 0 14px 14px',
-            fontWeight: 800,
-            fontSize: '1.25rem',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            boxShadow: '0 4px 20px rgba(184, 92, 58, 0.6)',
-            animation: 'turnBannerPulse 2s ease-in-out infinite',
-          }}>
-            Your Turn
-          </div>
-        </div>
-      )}
+          top: 8,
+          right: 8,
+          zIndex: 60,
+          background: 'rgba(0,0,0,0.5)',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: '8px',
+          padding: '6px 12px',
+          cursor: 'pointer',
+          fontSize: `${1.25 * scale}rem`,
+          fontWeight: 600,
+          fontFamily: "'Inter', sans-serif",
+          backdropFilter: 'blur(4px)',
+        }}
+      >
+        Exit
+      </button>
       {/* Table area - opponent seats + wild card */}
       <TableLayout
         seats={seatDisplays}
@@ -556,9 +559,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         wildCardTileId={wildCardTileId}
       />
 
-      {/* Chat overlay */}
-      <ChatPanel messages={chatMessages} mySessionId={mySessionId} onSend={handleChatSend} />
-
       {/* Bottom panel: player info + hand + actions */}
       <div style={{
         flexShrink: 0,
@@ -566,25 +566,25 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         borderTop: isMyTurn ? '3px solid var(--accent-warm)' : '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.375rem',
-        padding: '0.625rem 0.75rem',
-        maxHeight: '55dvh',
-        overflow: 'hidden',
+        gap: '0.25rem',
+        padding: scale < 0.75 ? '0.25rem 0.25rem' : '0.5rem 2rem',
+        overflow: 'visible',
         ...(isMyTurn && { boxShadow: '0 -4px 24px rgba(184, 92, 58, 0.3)' }),
       }}>
         {/* Player info row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem', minHeight: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem', minHeight: '2rem', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+            <span style={{ fontSize: `${1.5 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
               {mySeatDisplay ? ['E','S','W','N'][mySeatDisplay.seatIndex] : ''} {mySeatDisplay?.isDealer && 'D'}
             </span>
-            <span style={{ fontSize: '1rem', fontWeight: 600, color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)' }}>
+            <span style={{ fontSize: `${2 * scale}rem`, fontWeight: 600, color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {mySeatDisplay?.displayName}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', maxWidth: '16ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statusMessage}</span>
-            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{mySeatDisplay?.score ?? 25000}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+            <span style={{ fontSize: `${1.375 * scale}rem`, color: 'var(--text-muted)', maxWidth: '16ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statusMessage}</span>
+            <span style={{ fontSize: `${2 * scale}rem`, fontWeight: 700, color: 'var(--text-primary)' }}>{mySeatDisplay?.score ?? 25000}</span>
+            <ChatPanel messages={chatMessages} mySessionId={mySessionId} onSend={handleChatSend} />
           </div>
         </div>
 
@@ -595,15 +595,39 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           </div>
         )}
 
-        {/* Hand tiles */}
-        <HandArea tiles={handTiles} drawnTileId={drawnTileId} canDiscard={legalActions.includes('DISCARD_TILE')} onDiscard={handleDiscard} wildCardTileId={wildCardTileId} />
+        {/* Hand tiles with "Your Turn" banner above */}
+        <div style={{ position: 'relative' }}>
+          {isMyTurn && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              width: '100%',
+            }}>
+              <div style={{
+                background: 'var(--accent-warm)',
+                color: '#fff',
+                padding: '2px 1.5rem',
+                borderRadius: '0 0 8px 8px',
+                fontWeight: 800,
+                fontSize: `${1.25 * scale}rem`,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                boxShadow: '0 2px 12px rgba(184, 92, 58, 0.5)',
+                animation: 'turnBannerSlideIn 300ms ease-out, turnBannerPulse 2s ease-in-out infinite',
+              }}>
+                Your Turn
+              </div>
+            </div>
+          )}
+          <HandArea tiles={handTiles} drawnTileId={drawnTileId} canDiscard={legalActions.includes('DISCARD_TILE')} onDiscard={handleDiscard} wildCardTileId={wildCardTileId} />
+        </div>
 
         {/* Action buttons with discarded tile shown inline for reactions */}
         {allActions.length > 0 && (() => {
           const discardTile = reactionDiscardTileId ? parseTileId(reactionDiscardTileId) : null;
           const isWild = discardTile && wildCardTileId && tileKey(discardTile) === tileKey(parseTileId(wildCardTileId));
           const chiOpts = chiTileOptions.map(pair => ({
-            tileIds: [...pair, reactionDiscardTileId!],
+            tileIds: [...pair],
             label: pair.map(id => { const t = parseTileId(id); return t.suit ? `${t.rank}` : t.honorName ?? '?'; }).join('-'),
           }));
           return <ActionPrompt actions={allActions} onAction={handleAction} discardTile={discardTile} isWild={!!isWild} chiOptions={chiOpts} />;
@@ -636,11 +660,11 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           }}>
             {handResult.endReason === 'match-end' ? (
               <>
-                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 1rem 0', fontSize: '1.5rem' }}>Match Over</h2>
+                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 1rem 0', fontSize: `${3 * scale}rem` }}>Match Over</h2>
                 {handResult.finalScores?.map((s: any) => {
                   const seat = seatDisplays[s.seatIndex];
                   return (
-                    <div key={s.seatIndex} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: '1.0625rem' }}>
+                    <div key={s.seatIndex} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: `${2.125 * scale}rem` }}>
                       <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{seat?.displayName ?? `Seat ${s.seatIndex}`}</span>
                       <span style={{ color: s.points >= 25000 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{s.points}</span>
                     </div>
@@ -649,22 +673,22 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
               </>
             ) : handResult.endReason === 'exhaustive-draw' ? (
               <>
-                <h2 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0', fontSize: '1.5rem' }}>Exhaustive Draw</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1.0625rem' }}>No one wins this hand.</p>
+                <h2 style={{ color: 'var(--text-primary)', margin: '0 0 1rem 0', fontSize: `${3 * scale}rem` }}>Exhaustive Draw</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: `${2.125 * scale}rem` }}>No one wins this hand.</p>
               </>
             ) : (
               <>
-                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 0.75rem 0', fontSize: '1.75rem' }}>
+                <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 0.75rem 0', fontSize: `${3.5 * scale}rem` }}>
                   Tsumo!
                 </h2>
-                <p style={{ color: 'var(--text-primary)', fontSize: '1.0625rem', margin: '0 0 0.5rem 0' }}>
+                <p style={{ color: 'var(--text-primary)', fontSize: `${2.125 * scale}rem`, margin: '0 0 0.5rem 0' }}>
                   {seatDisplays.find(s => s.seatIndex === handResult.winner)?.displayName ?? `Seat ${handResult.winner}`} wins with {handResult.fan} fan{handResult.hasGong ? ' + GONG (2x)' : ''}
                 </p>
 
                 {/* Winning hand tiles - grouped by melds */}
                 {(handResult.handGroups || (handResult.winnerTiles && handResult.winnerTiles.length > 0)) && (
                   <div style={{ margin: '1rem 0', padding: '0.75rem', background: 'rgba(0,0,0,0.15)', borderRadius: '10px' }}>
-                    <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>Winning Hand</div>
+                    <div style={{ fontSize: `${1.375 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>Winning Hand</div>
                     {handResult.handGroups ? (
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
                         {handResult.handGroups.map((group: { type: string; tileIds: string[] }, gi: number) => (
@@ -677,7 +701,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                             border: group.type === 'pair' ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.08)',
                           }}>
                             {group.tileIds.map((tid: string, ti: number) => (
-                              <div key={ti}>{renderResultTile(parseTileId(tid), 40, 56)}</div>
+                              <div key={ti}>{renderResultTile(parseTileId(tid), 60, 84)}</div>
                             ))}
                           </div>
                         ))}
@@ -686,7 +710,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                       <div style={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                         {handResult.winnerTiles.map((tid: string, i: number) => {
                           const t = parseTileId(tid);
-                          return <div key={tid}>{renderResultTile(t, 40, 56)}</div>;
+                          return <div key={tid}>{renderResultTile(t, 60, 84)}</div>;
                         })}
                       </div>
                     )}
@@ -695,7 +719,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                         {handResult.winnerMelds.map((m: { type: string; tileIds: string[] }, mi: number) => (
                           <div key={mi} style={{ display: 'flex', gap: 1, padding: '2px 4px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px' }}>
                             {m.tileIds.map((tid: string, ti: number) => (
-                              <div key={ti}>{renderResultTile(parseTileId(tid), 32, 44)}</div>
+                              <div key={ti}>{renderResultTile(parseTileId(tid), 48, 66)}</div>
                             ))}
                           </div>
                         ))}
@@ -704,13 +728,13 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                   </div>
                 )}
 
-                <p style={{ color: 'var(--accent-warm)', fontSize: '1.75rem', fontWeight: 700, margin: '0.5rem 0' }}>
+                <p style={{ color: 'var(--accent-warm)', fontSize: `${3.5 * scale}rem`, fontWeight: 700, margin: '0.5rem 0' }}>
                   {handResult.total} points
                 </p>
                 {handResult.patterns && (
                   <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     {handResult.patterns.map((p: any) => (
-                      <div key={p.id} style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)' }}>
+                      <div key={p.id} style={{ fontSize: `${1.875 * scale}rem`, color: 'var(--text-secondary)' }}>
                         {p.name} <span style={{ color: 'var(--accent-warm)', fontWeight: 600 }}>({p.fanValue} fan)</span>
                       </div>
                     ))}
@@ -737,6 +761,35 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                 {handResult.endReason === 'match-end' ? 'Back to Home' : 'Next Hand'}
               </Button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Leave confirmation overlay */}
+      {showLeaveConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 200,
+        }}>
+          <div style={{
+            background: 'var(--surface-panel)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            maxWidth: '360px',
+            width: '90%',
+            textAlign: 'center',
+          }}>
+            <h3 style={{ color: 'var(--text-primary)', margin: '0 0 0.75rem 0', fontSize: `${1.75 * scale}rem` }}>Leave Game?</h3>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.25rem 0', fontSize: `${1.375 * scale}rem` }}>You will disconnect from the room and cannot rejoin.</p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <Button variant="secondary" onClick={() => setShowLeaveConfirm(false)}>Cancel</Button>
+              <Button onClick={handleLeave}>Leave</Button>
+            </div>
           </div>
         </div>
       )}

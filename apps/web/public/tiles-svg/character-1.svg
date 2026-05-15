@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 一 -->
+    <path d="M 55 80 L 125 80" stroke-width="6"/>
+    <!-- 萬 -->
+    <!-- Top grass radical -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <!-- Top horizontal -->
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <!-- Middle box -->
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <!-- Bottom strokes -->
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </g>
+</svg>

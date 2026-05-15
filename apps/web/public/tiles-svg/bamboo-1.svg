@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face">
+    <!-- Traditional bird motif for 1 Bamboo -->
+    <!-- Branch -->
+    <path d="M 70 180 Q 90 160 110 140" fill="none" stroke="#2e7d32" stroke-width="4" stroke-linecap="round"/>
+    <!-- Bird body -->
+    <ellipse cx="100" cy="115" rx="22" ry="16" fill="#d92525" stroke="#8b0000" stroke-width="2"/>
+    <!-- Bird head -->
+    <circle cx="118" cy="105" r="10" fill="#d92525" stroke="#8b0000" stroke-width="2"/>
+    <!-- Beak -->
+    <polygon points="126,102 138,106 126,110" fill="#2e7d32" stroke="#1b5e20" stroke-width="1"/>
+    <!-- Eye -->
+    <circle cx="121" cy="103" r="2" fill="#ffffff"/>
+    <circle cx="121" cy="103" r="1" fill="#000000"/>
+    <!-- Wing -->
+    <path d="M 95 115 Q 85 100 75 110 Q 80 120 95 118" fill="#b01c1c" stroke="#8b0000" stroke-width="1.5"/>
+    <!-- Tail -->
+    <path d="M 82 120 Q 65 110 58 125 Q 68 132 82 125" fill="#2e7d32" stroke="#1b5e20" stroke-width="1.5"/>
+    <!-- Legs -->
+    <line x1="100" y1="131" x2="95" y2="145" stroke="#2e7d32" stroke-width="2"/>
+    <line x1="108" y1="131" x2="115" y2="145" stroke="#2e7d32" stroke-width="2"/>
+    <!-- Leaves -->
+    <ellipse cx="70" cy="155" rx="8" ry="4" fill="#2e7d32" transform="rotate(-30 70 155)"/>
+    <ellipse cx="115" cy="135" rx="8" ry="4" fill="#2e7d32" transform="rotate(20 115 135)"/>
+  </g>
+</svg>

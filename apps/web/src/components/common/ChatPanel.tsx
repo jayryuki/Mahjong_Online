@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useScale } from '../../hooks/useScale.js';
 
 export interface ChatMessageData {
   senderId: string;
@@ -17,6 +18,7 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scale = useScale();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -32,72 +34,33 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
     setInput('');
   };
 
-  const unreadCount = isOpen ? 0 : messages.length;
+  const hasUnread = !isOpen && messages.length > 0;
 
   return (
     <div style={{
-      position: 'absolute',
-      right: 8,
-      top: 48,
-      zIndex: 40,
+      position: 'relative',
       display: 'flex',
       flexDirection: 'column',
-      width: isOpen ? 260 : undefined,
-      maxHeight: 'calc(100% - 60px)',
+      alignItems: 'flex-start',
+      flexShrink: 0,
     }}>
-      {/* Toggle button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          alignSelf: 'flex-end',
-          background: 'rgba(0,0,0,0.55)',
-          color: '#fff',
-          border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: 8,
-          padding: '4px 10px',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          backdropFilter: 'blur(6px)',
-        }}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-        Chat
-        {unreadCount > 0 && (
-          <span style={{
-            background: 'var(--accent-warm, #B85C3A)',
-            color: '#fff',
-            borderRadius: '50%',
-            width: 16,
-            height: 16,
-            fontSize: '0.5625rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-          }}>
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {/* Chat panel */}
+      {/* Popup panel - opens upward */}
       {isOpen && (
         <div style={{
-          marginTop: 4,
-          background: 'rgba(0,0,0,0.6)',
-          border: '1px solid rgba(255,255,255,0.15)',
+          position: 'absolute',
+          bottom: '100%',
+          left: 0,
+          marginBottom: 4,
+          width: Math.min(280, window.innerWidth - 24),
+          background: 'var(--surface-panel)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 10,
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: 320,
-          backdropFilter: 'blur(8px)',
+          maxHeight: 280,
           overflow: 'hidden',
+          zIndex: 50,
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
         }}>
           {/* Messages */}
           <div
@@ -109,13 +72,13 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
               display: 'flex',
               flexDirection: 'column',
               gap: 4,
-              maxHeight: 240,
+              maxHeight: 200,
             }}
           >
             {messages.length === 0 && (
               <span style={{
-                color: 'rgba(255,255,255,0.4)',
-                fontSize: '0.6875rem',
+                color: 'var(--text-muted)',
+                fontSize: `${0.8125 * scale}rem`,
                 textAlign: 'center',
                 padding: '1rem 0',
               }}>
@@ -131,30 +94,19 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
                   gap: 1,
                   alignItems: isMe ? 'flex-end' : 'flex-start',
                 }}>
-                  <span
-                    style={{
-                      fontSize: '0.5625rem',
-                      color: 'rgba(255,255,255,0.5)',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                      WebkitTextStroke: '0.3px rgba(0,0,0,0.8)',
-                      paintOrder: 'stroke fill',
-                    }}
-                  >
+                  <span style={{
+                    fontSize: `${0.6875 * scale}rem`,
+                    color: 'var(--text-muted)',
+                    fontWeight: 600,
+                  }}>
                     {msg.senderName}
                   </span>
-                  <span
-                    style={{
-                      fontSize: '0.8125rem',
-                      color: '#fff',
-                      lineHeight: 1.3,
-                      wordBreak: 'break-word',
-                      WebkitTextStroke: '0.8px rgba(0,0,0,0.9)',
-                      paintOrder: 'stroke fill',
-                      textShadow: '-1px -1px 0 rgba(0,0,0,0.7), 1px -1px 0 rgba(0,0,0,0.7), -1px 1px 0 rgba(0,0,0,0.7), 1px 1px 0 rgba(0,0,0,0.7), 0 0 4px rgba(0,0,0,0.5)',
-                    }}
-                  >
+                  <span style={{
+                    fontSize: `${0.8125 * scale}rem`,
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.3,
+                    wordBreak: 'break-word',
+                  }}>
                     {msg.text}
                   </span>
                 </div>
@@ -165,7 +117,7 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
           {/* Input */}
           <form onSubmit={handleSubmit} style={{
             display: 'flex',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
+            borderTop: '1px solid var(--border-subtle)',
           }}>
             <input
               type="text"
@@ -175,10 +127,10 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
               maxLength={200}
               style={{
                 flex: 1,
-                background: 'transparent',
+                background: 'var(--surface-panel-raised)',
                 border: 'none',
-                color: '#fff',
-                fontSize: '0.8125rem',
+                color: 'var(--text-primary)',
+                fontSize: `${0.8125 * scale}rem`,
                 padding: '8px 10px',
                 outline: 'none',
               }}
@@ -186,12 +138,12 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
             <button
               type="submit"
               style={{
-                background: 'var(--accent-warm, #B85C3A)',
+                background: 'var(--accent-warm)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '0 0 9px 0',
                 padding: '8px 12px',
-                fontSize: '0.75rem',
+                fontSize: `${0.75 * scale}rem`,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -201,6 +153,46 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
           </form>
         </div>
       )}
+
+      {/* Toggle button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          background: hasUnread ? 'var(--accent-warm)' : 'rgba(0,0,0,0.15)',
+          color: hasUnread ? '#fff' : 'var(--text-secondary)',
+          border: hasUnread ? '1px solid var(--accent-warm)' : '1px solid var(--border-subtle)',
+          borderRadius: 8,
+          padding: `${4 * scale}px ${10 * scale}px`,
+          fontSize: `${0.8125 * scale}rem`,
+          fontWeight: 600,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          ...(hasUnread ? { boxShadow: '0 0 10px 2px rgba(184, 92, 58, 0.5)', animation: 'chatGlow 2s ease-in-out infinite' } : {}),
+        }}
+      >
+        <svg width={14 * scale} height={14 * scale} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Chat
+        {hasUnread && (
+          <span style={{
+            background: '#fff',
+            color: 'var(--accent-warm)',
+            borderRadius: '50%',
+            width: 18,
+            height: 18,
+            fontSize: '0.5625rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 700,
+          }}>
+            {messages.length > 9 ? '9+' : messages.length}
+          </span>
+        )}
+      </button>
     </div>
   );
 }

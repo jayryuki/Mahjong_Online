@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { ManTile, PinTile, SouTile, HonorTile } from '@mahjong/ui';
+import React, { useState, useEffect, useRef } from 'react';
+import { TileRenderer } from '../common/TileRenderer.js';
+
+import { useScale } from '../../hooks/useScale.js';
 import { TileDef, tileSortKey } from '@mahjong/game-core';
 
 function parseTileId(id: string): TileDef {
@@ -31,6 +33,19 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
 
   useEffect(() => { setSelectedIndex(null); }, [tiles]);
 
+  const tileRowRef = useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+
+  useEffect(() => {
+    const el = tileRowRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      setMeasuredWidth(entries[0].contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const handleDiscard = (tile: TileDef) => {
     setDiscardingId(tile.id);
     setTimeout(() => {
@@ -40,20 +55,32 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     }, 250);
   };
 
-  // Dynamic sizing based on tile count - bigger when fewer tiles, capped for mobile
+  const scale = useScale();
+  // Tile sizing: tiles as big as possible, wrapping to 2 rows when single-row tiles would be too small
   const tileCount = tiles.length;
-  const baseW = Math.max(36, Math.min(52, Math.floor((window.innerWidth - 80) / tileCount)));
+  const gap = 2;
+  const drawnGap = drawnTileId ? 8 : 0;
+  const availableWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
+  const minTileW = 36; // minimum acceptable tile width before we wrap
+
+  // Calculate how many tiles fit per row at minimum width
+  const tilesPerRow = Math.max(1, Math.floor((availableWidth - drawnGap) / (minTileW + gap)));
+  const rows = Math.ceil(tileCount / tilesPerRow);
+  // Use up to 2 rows; if still too many tiles, allow more
+  const effectiveRows = Math.min(rows, 2);
+  const effectivePerRow = Math.ceil(tileCount / effectiveRows);
+
+  const gapsWidth = Math.max(0, effectivePerRow - 1) * gap;
+  const maxTileW = 68; // cap tile width on desktop
+  const baseW = tileCount > 0
+    ? Math.min(maxTileW, Math.floor((availableWidth - gapsWidth - drawnGap) / effectivePerRow))
+    : Math.round(60 * scale);
   const baseH = Math.round(baseW * 1.4);
 
   const wildSortKey = wildCardTileId ? tileSortKey(parseTileId(wildCardTileId)) : null;
 
   const renderTileEl = (tile: TileDef, w: number, h: number, selected?: boolean, onClick?: () => void) => {
-    const props = { width: w, height: h, selected, onClick };
-    if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...props} />;
-    if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...props} />;
-    if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...props} />;
-    if (tile.honorName) return <HonorTile honorName={tile.honorName} {...props} />;
-    return null;
+    return <TileRenderer tile={tile} width={w} height={h} selected={selected} onClick={onClick} />;
   };
 
   const renderTile = (tile: TileDef, index: number, isDrawn: boolean) => {
@@ -70,7 +97,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       transition: 'transform 200ms ease, opacity 200ms ease',
       cursor: canDiscard ? 'pointer' : 'default',
       ...(isSelected && { transform: 'translateY(-8px)' }),
-      ...(isDiscarding && { transform: 'translateY(-20px) scale(0.9)', opacity: 0.4 }),
+      ...(isDiscarding && { transform: 'translateY(-16px) scale(0.9)', opacity: 0.4 }),
       ...(isWild && !isDrawn && { border: '2px solid #fbbf24', borderRadius: '4px', boxShadow: '0 0 8px rgba(251,191,36,0.4)' }),
     };
 
@@ -78,43 +105,44 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       return (
         <div key={tile.id} style={{
           ...wrapperStyle,
-          maxWidth: baseW + 8,
-          marginLeft: 8,
-          position: 'relative',
-          paddingTop: 20,
+          maxWidth: baseW + 6,
+          marginLeft: 6,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '1px',
           animation: 'tileDrawIn 400ms ease-out',
         }}>
           <div style={{
-            position: 'absolute',
-            top: 0,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: '0.5625rem',
-            color: '#fff',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            whiteSpace: 'nowrap',
-            background: isWild ? '#fbbf24' : 'var(--accent-warm)',
-            padding: '2px 6px',
-            borderRadius: '3px',
-            lineHeight: 1.2,
-          }}>
-            {isWild ? 'Wild' : 'Drawn'}
-          </div>
-          <div style={{
-            padding: 3,
+            padding: 2,
             background: isWild
               ? 'linear-gradient(135deg, #fbbf24, #f59e0b)'
               : 'linear-gradient(135deg, var(--accent-warm), #d4764e)',
-            borderRadius: '6px',
+            borderRadius: '4px',
             boxShadow: isWild
-              ? '0 0 10px rgba(251,191,36,0.5), 0 2px 6px rgba(0,0,0,0.15)'
-              : '0 0 10px rgba(184, 92, 58, 0.5), 0 2px 6px rgba(0,0,0,0.15)',
-            transform: 'translateY(-4px)',
-            ...(isSelected && { transform: 'translateY(-12px)' }),
+              ? '0 0 8px rgba(251,191,36,0.5), 0 1px 4px rgba(0,0,0,0.15)'
+              : '0 0 8px rgba(184, 92, 58, 0.5), 0 1px 4px rgba(0,0,0,0.15)',
+            position: 'relative',
           }}>
             {tileEl}
+            <div style={{
+              position: 'absolute',
+              top: -8,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontSize: `${Math.max(0.625, 0.75 * scale)}rem`,
+              color: '#fff',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              whiteSpace: 'nowrap',
+              background: isWild ? '#fbbf24' : 'var(--accent-warm)',
+              padding: '1px 4px',
+              borderRadius: '2px',
+              lineHeight: 1.2,
+            }}>
+              {isWild ? 'Wild' : 'Drawn'}
+            </div>
           </div>
         </div>
       );
@@ -126,35 +154,44 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
   return (
     <div style={{
       display: 'flex',
-      gap: 2,
-      padding: '0.375rem 0.5rem',
-      justifyContent: 'center',
-      alignItems: 'flex-end',
-      flexWrap: 'nowrap',
+      flexDirection: 'column',
       width: '100%',
     }}>
-      {tiles.map((tile, i) => renderTile(tile, i, tile.id === drawnTileId))}
+      <div ref={tileRowRef} style={{
+        display: 'flex',
+        gap,
+        padding: '2px 2px 0',
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        flexWrap: 'wrap',
+        width: '100%',
+      }}>
+        {tiles.map((tile, i) => renderTile(tile, i, tile.id === drawnTileId))}
+      </div>
       {canDiscard && selectedIndex !== null && (
-        <button
-          onClick={() => handleDiscard(tiles[selectedIndex])}
-          style={{
-            marginLeft: 8,
-            padding: '0.5rem 1rem',
-            background: 'var(--accent-warm)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '0.875rem',
-            alignSelf: 'center',
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-            boxShadow: '0 2px 6px rgba(184, 92, 58, 0.4)',
-          }}
-        >
-          Discard
-        </button>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '4px 0 2px',
+        }}>
+          <button
+            onClick={() => handleDiscard(tiles[selectedIndex])}
+            style={{
+              padding: '0.4rem 1.5rem',
+              background: 'var(--accent-warm)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: `${1.5 * scale}rem`,
+              boxShadow: '0 2px 6px rgba(184, 92, 58, 0.4)',
+              animation: 'fadeInUp 200ms ease-out',
+            }}
+          >
+            Discard
+          </button>
+        </div>
       )}
     </div>
   );

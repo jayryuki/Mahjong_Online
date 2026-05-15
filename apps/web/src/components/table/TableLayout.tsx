@@ -44,7 +44,7 @@ export function TableLayout({ seats, mySeat, activeSeat, dealerSeat, roundWind, 
         flex: 1,
         display: 'grid',
         gridTemplateRows: 'auto 1fr auto',
-        gridTemplateColumns: 'auto 1fr auto',
+        gridTemplateColumns: 'minmax(0, 1fr) 2fr minmax(0, 1fr)',
         gridTemplateAreas: `
           ". top ."
           "left center right"
@@ -55,32 +55,34 @@ export function TableLayout({ seats, mySeat, activeSeat, dealerSeat, roundWind, 
         background: 'radial-gradient(ellipse at center, #2d5a3d 0%, #1e3f2a 60%, #152b1e 100%)',
         borderRadius: '0 0 8px 8px',
         padding: '6px',
-        gap: '4px',
+        gap: '6px',
       }}>
         {/* Across seat (top) */}
-        <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4 }}>
+        <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '2px 8px' }}>
           {acrossSeat && <SeatPosition position="top" seatIndex={acrossSeat.seatIndex} displayName={acrossSeat.displayName} tileCount={acrossSeat.tileCount} isDealer={acrossSeat.isDealer} isActive={acrossSeat.isActive} isRiichi={acrossSeat.isRiichi} score={acrossSeat.score} melds={acrossSeat.melds} />}
         </div>
 
         {/* Left seat */}
-        <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4 }}>
+        <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
           {leftSeat && <SeatPosition position="left" seatIndex={leftSeat.seatIndex} displayName={leftSeat.displayName} tileCount={leftSeat.tileCount} isDealer={leftSeat.isDealer} isActive={leftSeat.isActive} isRiichi={leftSeat.isRiichi} score={leftSeat.score} melds={leftSeat.melds} />}
         </div>
 
-        {/* Center: river + wild card overlay */}
-        <div style={{ gridArea: 'center', position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+        {/* Center: river only (WildCardDisplay renders via portal) */}
+        <div style={{ gridArea: 'center', position: 'relative', overflow: 'hidden', minHeight: 0, borderRadius: '4px' }}>
           <CenterRiver mySeat={mySeat} seats={seats} />
-          <WildCardDisplay wildCardTileId={wildCardTileId} />
         </div>
 
         {/* Right seat */}
-        <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4 }}>
+        <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
           {rightSeat && <SeatPosition position="right" seatIndex={rightSeat.seatIndex} displayName={rightSeat.displayName} tileCount={rightSeat.tileCount} isDealer={rightSeat.isDealer} isActive={rightSeat.isActive} isRiichi={rightSeat.isRiichi} score={rightSeat.score} melds={rightSeat.melds} />}
         </div>
 
         {/* Bottom (my seat - empty here, hand is in the bottom panel) */}
         <div style={{ gridArea: 'bottom' }} />
       </div>
+
+      {/* Wild card renders via portal to body — still needs to be in the component tree for state */}
+      <WildCardDisplay wildCardTileId={wildCardTileId} />
     </div>
   );
 }

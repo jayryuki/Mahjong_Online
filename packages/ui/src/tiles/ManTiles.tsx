@@ -20,7 +20,7 @@ export function ManTile({ rank, width = 48, height = 64, selected, onClick }: Ma
         textAnchor="middle"
         dominantBaseline="central"
         fill="var(--tile-stroke)"
-        fontSize={width * 0.5}
+        fontSize={width * 0.38}
         fontFamily="'Newsreader', Georgia, serif"
         fontWeight="400"
       >

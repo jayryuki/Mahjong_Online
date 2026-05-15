@@ -17,6 +17,8 @@ export function TileSVG({ width = 48, height = 64, selected, onClick, children }
       viewBox={`0 0 ${width} ${height}`}
       onClick={onClick}
       style={{
+        display: 'block',
+        overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default',
         filter: selected ? 'brightness(1.05)' : undefined,
         transition: 'filter 120ms ease',
@@ -35,7 +37,9 @@ export function TileSVG({ width = 48, height = 64, selected, onClick, children }
         stroke={selected ? 'var(--accent-warm)' : 'var(--tile-face-border)'}
         strokeWidth={selected ? 2 : 1}
       />
-      {children}
+      <g clipPath={`inset(0 round ${borderRadius}px)`}>
+        {children}
+      </g>
     </svg>
   );
 }

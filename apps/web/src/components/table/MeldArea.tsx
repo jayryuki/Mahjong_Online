@@ -1,5 +1,6 @@
 import React from 'react';
-import { ManTile, PinTile, SouTile, HonorTile } from '@mahjong/ui';
+import { TileRenderer } from '../common/TileRenderer.js';
+import { useScale } from '../../hooks/useScale.js';
 import { TileDef } from '@mahjong/game-core';
 
 function parseTileId(id: string): TileDef {
@@ -27,16 +28,14 @@ interface MeldAreaProps {
   melds: Meld[];
 }
 
-function renderSmallTile(tile: TileDef) {
-  const props = { width: 42, height: 58 };
-  if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...props} />;
-  if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...props} />;
-  if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...props} />;
-  if (tile.honorName) return <HonorTile honorName={tile.honorName} {...props} />;
-  return null;
+function renderSmallTile(tile: TileDef, w: number, h: number) {
+  return <TileRenderer tile={tile} width={w} height={h} />;
 }
 
 export function MeldArea({ melds }: MeldAreaProps) {
+  const scale = useScale();
+  const tileW = Math.round(63 * scale);
+  const tileH = Math.round(87 * scale);
   return (
     <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
       {melds.map((meld, i) => (
@@ -49,12 +48,12 @@ export function MeldArea({ melds }: MeldAreaProps) {
           border: '1px solid var(--border-subtle)',
         }}>
           {(!meld.tiles || meld.tiles.length === 0) && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0 0.375rem' }}>{meld.type}</span>
+            <span style={{ fontSize: `${1.5 * scale}rem`, color: 'var(--text-muted)', padding: '0 0.375rem' }}>{meld.type}</span>
           )}
           {meld.tiles && meld.tiles.length > 0 && meld.tiles.map((t: any, j: number) => {
             const tileId = typeof t === 'string' ? t : t.id;
             const tileDef = parseTileId(tileId);
-            return <div key={j}>{renderSmallTile(tileDef)}</div>;
+            return <div key={j}>{renderSmallTile(tileDef, tileW, tileH)}</div>;
           })}
         </div>
       ))}

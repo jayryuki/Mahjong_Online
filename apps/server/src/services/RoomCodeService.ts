@@ -17,7 +17,7 @@ export class RoomCodeService {
   }
 
   register(code: string, roomId: string): void {
-    this.codeToRoomId.set(code, roomId);
+    this.codeToRoomId.set(code.toUpperCase(), roomId);
   }
 
   getRoomId(code: string): string | undefined {
@@ -25,6 +25,10 @@ export class RoomCodeService {
   }
 
   remove(code: string): void {
-    this.codeToRoomId.delete(code);
+    this.codeToRoomId.delete(code.toUpperCase());
+  }
+
+  getAll(): Map<string, string> {
+    return this.codeToRoomId;
   }
 }

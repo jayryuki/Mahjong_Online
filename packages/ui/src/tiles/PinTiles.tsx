@@ -15,7 +15,7 @@ function PinCircles({ rank, cx, cy, baseR, spacing }: { rank: number; cx: number
 
   for (const pos of positions) {
     circles.push(
-      <circle key={`o-${pos.x.toFixed(1)}-${pos.y.toFixed(1)}`} cx={pos.x} cy={pos.y} r={baseR} fill="none" stroke="var(--tile-stroke)" strokeWidth={1.2} />,
+      <circle key={`o-${pos.x.toFixed(1)}-${pos.y.toFixed(1)}`} cx={pos.x} cy={pos.y} r={baseR} fill="none" stroke="var(--tile-stroke)" strokeWidth={1} />,
       <circle key={`i-${pos.x.toFixed(1)}-${pos.y.toFixed(1)}`} cx={pos.x} cy={pos.y} r={baseR * 0.4} fill="var(--tile-stroke)" />
     );
   }

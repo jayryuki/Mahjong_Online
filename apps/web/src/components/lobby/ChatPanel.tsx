@@ -32,7 +32,7 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '280px', borderRadius: '8px', background: 'var(--surface-panel)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, borderRadius: '8px', background: 'var(--surface-panel)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
       <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-subtle)', fontWeight: 600, fontSize: '0.8125rem', color: 'var(--text-secondary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
         Chat
       </div>

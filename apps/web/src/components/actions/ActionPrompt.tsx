@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../common/Button.js';
-import { ManTile, PinTile, SouTile, HonorTile } from '@mahjong/ui';
+import { TileRenderer } from '../common/TileRenderer.js';
+import { useScale } from '../../hooks/useScale.js';
 import { TileDef } from '@mahjong/game-core';
 
 interface ChiOption {
@@ -32,22 +33,12 @@ const HIDDEN_ACTIONS = new Set(['DISCARD_TILE']);
 
 const REACTION_ACTIONS = new Set(['CALL_CHI', 'CALL_PON', 'CALL_KAN_OPEN', 'CALL_KAN_ADDED', 'DECLARE_WIN_RON']);
 
-function renderDiscardTile(tile: TileDef) {
-  const size = { width: 64, height: 90 };
-  if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...size} />;
-  if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...size} />;
-  if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...size} />;
-  if (tile.honorName) return <HonorTile honorName={tile.honorName} {...size} />;
-  return null;
+function renderDiscardTile(tile: TileDef, w: number, h: number) {
+  return <TileRenderer tile={tile} width={w} height={h} />;
 }
 
-function renderMiniTile(tile: TileDef) {
-  const size = { width: 36, height: 50 };
-  if (tile.suit === 'man') return <ManTile rank={tile.rank!} {...size} />;
-  if (tile.suit === 'pin') return <PinTile rank={tile.rank!} {...size} />;
-  if (tile.suit === 'sou') return <SouTile rank={tile.rank!} {...size} />;
-  if (tile.honorName) return <HonorTile honorName={tile.honorName} {...size} />;
-  return null;
+function renderMiniTile(tile: TileDef, w: number, h: number) {
+  return <TileRenderer tile={tile} width={w} height={h} />;
 }
 
 function parseTileIdAction(id: string): TileDef {
@@ -67,6 +58,11 @@ function parseTileIdAction(id: string): TileDef {
 
 export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOptions }: ActionPromptProps) {
   const [showChiPicker, setShowChiPicker] = useState(false);
+  const scale = useScale();
+  const discardTileW = Math.round(96 * scale);
+  const discardTileH = Math.round(135 * scale);
+  const miniTileW = Math.round(54 * scale);
+  const miniTileH = Math.round(75 * scale);
   const visibleActions = actions.filter(a => !HIDDEN_ACTIONS.has(a));
   if (visibleActions.length === 0) return null;
 
@@ -95,7 +91,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
           alignItems: 'center',
           gap: '4px',
         }}>
-          <span style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-warm)', fontWeight: 700 }}>
+          <span style={{ fontSize: `${1.375 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-warm)', fontWeight: 700 }}>
             Discarded
           </span>
           <div style={{
@@ -104,9 +100,9 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
             borderRadius: '8px',
             boxShadow: '0 0 14px rgba(184, 92, 58, 0.5)',
           }}>
-            {renderDiscardTile(discardTile)}
+            {renderDiscardTile(discardTile, discardTileW, discardTileH)}
           </div>
-          {isWild && <span style={{ fontSize: '0.5625rem', color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.15)', padding: '1px 6px', borderRadius: '3px' }}>WILD</span>}
+          {isWild && <span style={{ fontSize: `${1.125 * scale}rem`, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.15)', padding: '1px 6px', borderRadius: '3px' }}>WILD</span>}
         </div>
       )}
       <div style={{ display: 'flex', gap: '0.625rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -133,9 +129,9 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
               style={{
                 ...(isWin ? { animation: 'pulse 1.5s infinite' } : {}),
                 animation: isWin ? 'pulse 1.5s infinite' : 'fadeInUp 250ms ease-out',
-                fontSize: '1.0625rem',
+                fontSize: `${2.125 * scale}rem`,
                 padding: '0.625rem 1.25rem',
-                ...(isPass && { opacity: 0.7, fontSize: '0.9375rem', padding: '0.5rem 1rem' }),
+                ...(isPass && { opacity: 0.7, fontSize: `${1.875 * scale}rem`, padding: '0.5rem 1rem' }),
               }}
             >
               {ACTION_LABELS[action] || action}
@@ -152,8 +148,11 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
           background: 'rgba(0,0,0,0.2)',
           borderRadius: '10px',
           marginTop: '0.375rem',
+          maxHeight: `${Math.min(chiOptions.length, 3) * (miniTileH + 16) + 60}px`,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}>
-          <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'center' }}>
+          <div style={{ fontSize: `${1.375 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'center', flexShrink: 0 }}>
             Choose Chi
           </div>
           {chiOptions.map((opt, idx) => {
@@ -164,6 +163,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
                   return sk(a).localeCompare(sk(b));
                 })
               : optTiles;
+            const discardId = discardTile?.id;
             return (
               <button
                 key={idx}
@@ -178,11 +178,42 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
                   borderRadius: '8px',
                   cursor: 'pointer',
                   transition: 'border-color 150ms, background 150ms',
+                  flexShrink: 0,
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-warm)'; e.currentTarget.style.background = 'rgba(184,92,58,0.1)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--surface-panel)'; }}
               >
-                {allSeqTiles.map((t, ti) => renderMiniTile(t))}
+                {allSeqTiles.map((t, ti) => (
+                  <div key={ti} style={{
+                    opacity: t.id === discardId ? 0.55 : 1,
+                    filter: t.id === discardId ? 'grayscale(0.4)' : 'none',
+                    border: t.id === discardId ? '2px dashed var(--accent-warm)' : '2px solid transparent',
+                    borderRadius: '4px',
+                    padding: 1,
+                    position: 'relative',
+                  }}>
+                    {renderMiniTile(t, miniTileW, miniTileH)}
+                    {t.id === discardId && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: -2,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        fontSize: `${0.5 * scale}rem`,
+                        color: 'var(--accent-warm)',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                        background: 'rgba(0,0,0,0.5)',
+                        padding: '0 2px',
+                        borderRadius: '2px',
+                        lineHeight: 1.2,
+                      }}>
+                        Discard
+                      </div>
+                    )}
+                  </div>
+                ))}
               </button>
             );
           })}
@@ -190,7 +221,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
             variant="ghost"
             size="sm"
             onClick={() => setShowChiPicker(false)}
-            style={{ fontSize: '0.8125rem', marginTop: '0.125rem' }}
+            style={{ fontSize: `${1.625 * scale}rem`, marginTop: '0.125rem', flexShrink: 0 }}
           >
             Cancel
           </Button>

@@ -8,7 +8,7 @@ import { PlayerList } from '../components/lobby/PlayerList.js';
 import { RulesSummary } from '../components/lobby/RulesSummary.js';
 import { ChatPanel } from '../components/lobby/ChatPanel.js';
 import { useGameClient } from '../hooks/useGameClient.js';
-import { setRoom } from '../lib/gameContext.js';
+import { setRoom, clearRoom } from '../lib/gameContext.js';
 import { GameScreen } from './GameScreen.js';
 
 export function LobbyScreen() {
@@ -48,9 +48,9 @@ export function LobbyScreen() {
   const allReady = players.length > 0 && players.every((p: any) => p.isReady);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '2rem', maxWidth: '640px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <Button variant="ghost" onClick={() => navigate('/')}>&larr; Leave</Button>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', padding: '0.75rem', maxWidth: '800px', margin: '0 auto', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <Button variant="ghost" onClick={() => { try { room?.leave(); } catch {} clearRoom(); navigate('/'); }}>&larr; Leave</Button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, letterSpacing: '0.15em', color: 'var(--accent-warm)', fontSize: '1.125rem' }}>
             {roomCode}
@@ -59,31 +59,33 @@ export function LobbyScreen() {
         </div>
       </div>
 
-      <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: '1.5rem', fontWeight: 500, color: 'var(--text-primary)', margin: '0 0 1.5rem 0' }}>
+      <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: '1.5rem', fontWeight: 500, color: 'var(--text-primary)', margin: '0.75rem 0 1rem 0', flexShrink: 0 }}>
         Lobby
       </h1>
 
-      {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem' }}>{error}</div>}
+      {error && <div style={{ color: 'var(--danger)', marginBottom: '0.5rem', flexShrink: 0 }}>{error}</div>}
 
-      <SeatMap players={players} myPlayerId={mySessionId} onChooseSeat={(idx) => room?.send('choose-seat', { seatIndex: idx })} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', minHeight: 0, overflow: 'hidden' }}>
+        <SeatMap players={players} myPlayerId={mySessionId} onChooseSeat={(idx) => room?.send('choose-seat', { seatIndex: idx })} />
 
-      <div style={{ marginTop: '1.5rem' }}>
-        <PlayerList players={players} />
+        <div>
+          <PlayerList players={players} />
+        </div>
+
+        <div>
+          <RulesSummary />
+        </div>
+
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ChatPanel
+            messages={chatMessages}
+            mySessionId={mySessionId ?? ''}
+            onSend={(text) => room?.send('chat', { text })}
+          />
+        </div>
       </div>
 
-      <div style={{ marginTop: '1.5rem' }}>
-        <RulesSummary />
-      </div>
-
-      <div style={{ marginTop: '1.5rem' }}>
-        <ChatPanel
-          messages={chatMessages}
-          mySessionId={mySessionId ?? ''}
-          onSend={(text) => room?.send('chat', { text })}
-        />
-      </div>
-
-      <div style={{ marginTop: '2rem', display: 'flex', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', flexShrink: 0, padding: '0.75rem 0 0' }}>
         <Button
           variant="secondary"
           onClick={() => room?.send('toggle-ready')}

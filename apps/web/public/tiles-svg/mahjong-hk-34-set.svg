@@ -1,0 +1,749 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1820 1060">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+    <symbol id="tile-frame" viewBox="0 0 180 240">
+      <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+      <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+      <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+    </symbol>
+  <symbol id="tile-face-0" viewBox="0 0 180 240">
+<circle cx="90" cy="120" r="28" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-1" viewBox="0 0 180 240">
+<circle cx="60" cy="80" r="22" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="120" cy="160" r="22" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-2" viewBox="0 0 180 240">
+<circle cx="60" cy="80" r="20" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="90" cy="120" r="20" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="120" cy="160" r="20" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-3" viewBox="0 0 180 240">
+<circle cx="60" cy="75" r="20" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="120" cy="75" r="20" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="60" cy="165" r="20" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="120" cy="165" r="20" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-4" viewBox="0 0 180 240">
+<circle cx="60" cy="75" r="18" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="120" cy="75" r="18" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="90" cy="120" r="18" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="60" cy="165" r="18" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="120" cy="165" r="18" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-5" viewBox="0 0 180 240">
+<circle cx="55" cy="70" r="17" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="70" r="17" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="55" cy="120" r="17" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="120" r="17" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="55" cy="170" r="17" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="170" r="17" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-6" viewBox="0 0 180 240">
+<circle cx="55" cy="65" r="16" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="90" cy="65" r="16" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="65" r="16" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="55" cy="120" r="16" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="120" r="16" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="55" cy="175" r="16" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="175" r="16" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-7" viewBox="0 0 180 240">
+<circle cx="55" cy="60" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="60" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="55" cy="100" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="100" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="55" cy="140" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="140" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="55" cy="180" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="125" cy="180" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-8" viewBox="0 0 180 240">
+<circle cx="50" cy="55" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="90" cy="55" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="130" cy="55" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="50" cy="120" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="90" cy="120" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="130" cy="120" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="50" cy="185" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="90" cy="185" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+    <circle cx="130" cy="185" r="15" fill="#d92525" stroke="#b01c1c" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-9" viewBox="0 0 180 240">
+<!-- Traditional bird motif for 1 Bamboo -->
+    <!-- Branch -->
+    <path d="M 70 180 Q 90 160 110 140" fill="none" stroke="#2e7d32" stroke-width="4" stroke-linecap="round"/>
+    <!-- Bird body -->
+    <ellipse cx="100" cy="115" rx="22" ry="16" fill="#d92525" stroke="#8b0000" stroke-width="2"/>
+    <!-- Bird head -->
+    <circle cx="118" cy="105" r="10" fill="#d92525" stroke="#8b0000" stroke-width="2"/>
+    <!-- Beak -->
+    <polygon points="126,102 138,106 126,110" fill="#2e7d32" stroke="#1b5e20" stroke-width="1"/>
+    <!-- Eye -->
+    <circle cx="121" cy="103" r="2" fill="#ffffff"/>
+    <circle cx="121" cy="103" r="1" fill="#000000"/>
+    <!-- Wing -->
+    <path d="M 95 115 Q 85 100 75 110 Q 80 120 95 118" fill="#b01c1c" stroke="#8b0000" stroke-width="1.5"/>
+    <!-- Tail -->
+    <path d="M 82 120 Q 65 110 58 125 Q 68 132 82 125" fill="#2e7d32" stroke="#1b5e20" stroke-width="1.5"/>
+    <!-- Legs -->
+    <line x1="100" y1="131" x2="95" y2="145" stroke="#2e7d32" stroke-width="2"/>
+    <line x1="108" y1="131" x2="115" y2="145" stroke="#2e7d32" stroke-width="2"/>
+    <!-- Leaves -->
+    <ellipse cx="70" cy="155" rx="8" ry="4" fill="#2e7d32" transform="rotate(-30 70 155)"/>
+    <ellipse cx="115" cy="135" rx="8" ry="4" fill="#2e7d32" transform="rotate(20 115 135)"/>
+  </symbol>
+  <symbol id="tile-face-10" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="75" y="90"/>
+    <use href="#bamboo-stick" x="105" y="150"/>
+  </symbol>
+  <symbol id="tile-face-11" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="75" y="75"/>
+    <use href="#bamboo-stick" x="105" y="120"/>
+    <use href="#bamboo-stick" x="75" y="165"/>
+  </symbol>
+  <symbol id="tile-face-12" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="65" y="80"/>
+    <use href="#bamboo-stick" x="115" y="80"/>
+    <use href="#bamboo-stick" x="65" y="160"/>
+    <use href="#bamboo-stick" x="115" y="160"/>
+  </symbol>
+  <symbol id="tile-face-13" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="65" y="75"/>
+    <use href="#bamboo-stick" x="115" y="75"/>
+    <use href="#bamboo-stick" x="90" y="120"/>
+    <use href="#bamboo-stick" x="65" y="165"/>
+    <use href="#bamboo-stick" x="115" y="165"/>
+  </symbol>
+  <symbol id="tile-face-14" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="60" y="70"/>
+    <use href="#bamboo-stick" x="120" y="70"/>
+    <use href="#bamboo-stick" x="60" y="120"/>
+    <use href="#bamboo-stick" x="120" y="120"/>
+    <use href="#bamboo-stick" x="60" y="170"/>
+    <use href="#bamboo-stick" x="120" y="170"/>
+  </symbol>
+  <symbol id="tile-face-15" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="60" y="65"/>
+    <use href="#bamboo-stick" x="90" y="65"/>
+    <use href="#bamboo-stick" x="120" y="65"/>
+    <use href="#bamboo-stick" x="60" y="120"/>
+    <use href="#bamboo-stick" x="120" y="120"/>
+    <use href="#bamboo-stick" x="60" y="175"/>
+    <use href="#bamboo-stick" x="120" y="175"/>
+  </symbol>
+  <symbol id="tile-face-16" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="60" y="60"/>
+    <use href="#bamboo-stick" x="120" y="60"/>
+    <use href="#bamboo-stick" x="60" y="100"/>
+    <use href="#bamboo-stick" x="120" y="100"/>
+    <use href="#bamboo-stick" x="60" y="140"/>
+    <use href="#bamboo-stick" x="120" y="140"/>
+    <use href="#bamboo-stick" x="60" y="180"/>
+    <use href="#bamboo-stick" x="120" y="180"/>
+  </symbol>
+  <symbol id="tile-face-17" viewBox="0 0 180 240">
+<use href="#bamboo-stick" x="55" y="55"/>
+    <use href="#bamboo-stick" x="90" y="55"/>
+    <use href="#bamboo-stick" x="125" y="55"/>
+    <use href="#bamboo-stick" x="55" y="105"/>
+    <use href="#bamboo-stick" x="90" y="105"/>
+    <use href="#bamboo-stick" x="125" y="105"/>
+    <use href="#bamboo-stick" x="55" y="155"/>
+    <use href="#bamboo-stick" x="90" y="155"/>
+    <use href="#bamboo-stick" x="125" y="155"/>
+  </symbol>
+  <symbol id="tile-face-18" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 一 -->
+    <path d="M 55 80 L 125 80" stroke-width="6"/>
+    <!-- 萬 -->
+    <!-- Top grass radical -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <!-- Top horizontal -->
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <!-- Middle box -->
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <!-- Bottom strokes -->
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-19" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 二 -->
+    <path d="M 55 70 L 125 70" stroke-width="6"/>
+    <path d="M 55 90 L 125 90" stroke-width="6"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-20" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 三 -->
+    <path d="M 55 65 L 125 65" stroke-width="6"/>
+    <path d="M 65 80 L 115 80" stroke-width="5"/>
+    <path d="M 55 95 L 125 95" stroke-width="6"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-21" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 四 -->
+    <path d="M 55 60 L 55 95" stroke-width="5"/>
+    <path d="M 75 60 L 75 95" stroke-width="5"/>
+    <path d="M 95 60 L 95 95" stroke-width="5"/>
+    <path d="M 55 60 L 115 60" stroke-width="4"/>
+    <path d="M 55 95 L 95 95" stroke-width="4"/>
+    <path d="M 110 60 L 110 95" stroke-width="5"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-22" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 五 -->
+    <path d="M 55 60 L 125 60" stroke-width="5"/>
+    <path d="M 60 60 L 60 95" stroke-width="5"/>
+    <path d="M 60 75 L 110 75" stroke-width="4"/>
+    <path d="M 110 75 L 110 95" stroke-width="5"/>
+    <path d="M 60 95 L 110 95" stroke-width="4"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-23" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 六 -->
+    <path d="M 85 55 L 55 85" stroke-width="5"/>
+    <path d="M 55 85 L 55 100" stroke-width="5"/>
+    <path d="M 85 70 L 115 70" stroke-width="5"/>
+    <path d="M 85 70 L 85 100" stroke-width="5"/>
+    <path d="M 85 85 L 115 85" stroke-width="4"/>
+    <path d="M 85 100 L 115 100" stroke-width="4"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-24" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 七 -->
+    <path d="M 55 60 L 125 60" stroke-width="5"/>
+    <path d="M 75 60 L 55 100" stroke-width="5"/>
+    <path d="M 100 60 L 100 100" stroke-width="5"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-25" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 八 -->
+    <path d="M 55 60 L 55 100" stroke-width="5"/>
+    <path d="M 55 60 L 90 80 L 125 60" stroke-width="4" fill="none"/>
+    <path d="M 55 100 L 90 80 L 125 100" stroke-width="4" fill="none"/>
+    <path d="M 125 60 L 125 100" stroke-width="5"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-26" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 九 -->
+    <path d="M 60 55 L 60 100" stroke-width="5"/>
+    <path d="M 60 55 L 100 55" stroke-width="4"/>
+    <path d="M 100 55 L 100 85" stroke-width="5"/>
+    <path d="M 85 70 L 115 70" stroke-width="4"/>
+    <path d="M 85 85 L 115 85" stroke-width="4"/>
+    <!-- 萬 -->
+    <path d="M 65 115 L 75 105 M 90 115 L 90 105 M 115 115 L 105 105" stroke-width="3"/>
+    <path d="M 55 120 L 125 120" stroke-width="4"/>
+    <path d="M 65 130 L 65 150 M 115 130 L 115 150 M 65 140 L 115 140" stroke-width="3"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 55 160 L 90 150 L 125 160" stroke-width="3" fill="none"/>
+    <path d="M 90 150 L 90 185" stroke-width="4"/>
+    <path d="M 70 170 L 110 170" stroke-width="3"/>
+    <path d="M 60 185 L 120 185" stroke-width="4"/>
+  </symbol>
+  <symbol id="tile-face-27" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 東 -->
+    <!-- Top horizontal -->
+    <path d="M 45 55 L 135 55" stroke-width="6"/>
+    <!-- Left vertical -->
+    <path d="M 55 55 L 55 185" stroke-width="5"/>
+    <!-- Right vertical -->
+    <path d="M 125 55 L 125 185" stroke-width="5"/>
+    <!-- Middle horizontal -->
+    <path d="M 55 95 L 125 95" stroke-width="5"/>
+    <!-- Inner top box -->
+    <path d="M 75 70 L 75 85 M 105 70 L 105 85" stroke-width="4"/>
+    <path d="M 75 70 L 105 70" stroke-width="3"/>
+    <path d="M 75 85 L 105 85" stroke-width="3"/>
+    <!-- Inner bottom -->
+    <path d="M 65 115 L 65 170" stroke-width="4"/>
+    <path d="M 90 115 L 90 170" stroke-width="4"/>
+    <path d="M 115 115 L 115 170" stroke-width="4"/>
+    <path d="M 65 130 L 115 130" stroke-width="3"/>
+    <path d="M 65 155 L 115 155" stroke-width="3"/>
+    <!-- Bottom tie -->
+    <path d="M 55 185 L 125 185" stroke-width="5"/>
+  </symbol>
+  <symbol id="tile-face-28" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 南 -->
+    <!-- Top horizontal -->
+    <path d="M 45 55 L 135 55" stroke-width="6"/>
+    <!-- Left vertical -->
+    <path d="M 55 55 L 55 185" stroke-width="5"/>
+    <!-- Right vertical -->
+    <path d="M 125 55 L 125 185" stroke-width="5"/>
+    <!-- Middle horizontal -->
+    <path d="M 55 95 L 125 95" stroke-width="5"/>
+    <!-- Inner top box -->
+    <path d="M 75 70 L 75 85 M 105 70 L 105 85" stroke-width="4"/>
+    <path d="M 75 70 L 105 70" stroke-width="3"/>
+    <path d="M 75 85 L 105 85" stroke-width="3"/>
+    <!-- Center vertical -->
+    <path d="M 90 95 L 90 185" stroke-width="5"/>
+    <!-- Bottom left and right -->
+    <path d="M 55 140 L 90 140" stroke-width="4"/>
+    <path d="M 90 140 L 125 140" stroke-width="4"/>
+    <!-- Bottom horizontal -->
+    <path d="M 55 185 L 125 185" stroke-width="5"/>
+  </symbol>
+  <symbol id="tile-face-29" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 西 -->
+    <!-- Top horizontal -->
+    <path d="M 45 55 L 135 55" stroke-width="6"/>
+    <!-- Left vertical -->
+    <path d="M 55 55 L 55 185" stroke-width="5"/>
+    <!-- Right vertical -->
+    <path d="M 125 55 L 125 185" stroke-width="5"/>
+    <!-- Middle horizontal -->
+    <path d="M 55 95 L 125 95" stroke-width="5"/>
+    <!-- Inner verticals -->
+    <path d="M 75 70 L 75 85" stroke-width="4"/>
+    <path d="M 105 70 L 105 85" stroke-width="4"/>
+    <path d="M 75 70 L 105 70" stroke-width="3"/>
+    <path d="M 75 85 L 105 85" stroke-width="3"/>
+    <!-- Lower section -->
+    <path d="M 55 140 L 125 140" stroke-width="5"/>
+    <path d="M 55 185 L 125 185" stroke-width="5"/>
+    <path d="M 90 95 L 90 185" stroke-width="5"/>
+  </symbol>
+  <symbol id="tile-face-30" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#1565c0" stroke="#0d47a1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 北 -->
+    <!-- Top horizontal -->
+    <path d="M 45 55 L 135 55" stroke-width="6"/>
+    <!-- Left vertical -->
+    <path d="M 55 55 L 55 185" stroke-width="5"/>
+    <!-- Right vertical -->
+    <path d="M 125 55 L 125 185" stroke-width="5"/>
+    <!-- Middle horizontal -->
+    <path d="M 55 95 L 125 95" stroke-width="5"/>
+    <!-- Inner top box -->
+    <path d="M 75 70 L 75 85 M 105 70 L 105 85" stroke-width="4"/>
+    <path d="M 75 70 L 105 70" stroke-width="3"/>
+    <path d="M 75 85 L 105 85" stroke-width="3"/>
+    <!-- Center split -->
+    <path d="M 90 95 L 90 185" stroke-width="5"/>
+    <!-- Lower horizontals -->
+    <path d="M 55 140 L 90 140" stroke-width="4"/>
+    <path d="M 90 140 L 125 140" stroke-width="4"/>
+    <!-- Bottom -->
+    <path d="M 55 185 L 125 185" stroke-width="5"/>
+  </symbol>
+  <symbol id="tile-face-31" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#d92525" stroke="#8b0000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 中 (Red Dragon) -->
+    <!-- Outer rectangle -->
+    <rect x="45" y="50" width="90" height="140" rx="4" ry="4" fill="none" stroke-width="5"/>
+    <!-- Vertical center -->
+    <path d="M 90 50 L 90 190" stroke-width="6"/>
+    <!-- Horizontal center -->
+    <path d="M 45 120 L 135 120" stroke-width="6"/>
+  </symbol>
+  <symbol id="tile-face-32" viewBox="0 0 180 240">
+http://www.w3.org/2000/svg" viewBox="0 0 180 240">
+  <defs>
+    <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fdfbf5"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <g id="tile">
+    <rect x="6" y="6" width="168" height="228" rx="14" ry="14" fill="#d4c8b0" filter="url(#shadow)"/>
+    <rect x="8" y="8" width="164" height="224" rx="12" ry="12" fill="url(#face)"/>
+    <rect x="14" y="14" width="152" height="212" rx="8" ry="8" fill="none" stroke="#e8dfd0" stroke-width="1.5"/>
+  </g>
+  <g id="face" fill="#2e7d32" stroke="#1b5e20" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 發 (Green Dragon) -->
+    <!-- Top horizontal -->
+    <path d="M 50 55 L 130 55" stroke-width="5"/>
+    <!-- Left vertical -->
+    <path d="M 65 55 L 65 185" stroke-width="5"/>
+    <!-- Right vertical -->
+    <path d="M 115 55 L 115 185" stroke-width="5"/>
+    <!-- Middle horizontal -->
+    <path d="M 65 95 L 115 95" stroke-width="5"/>
+    <!-- Inner top diagonal -->
+    <path d="M 75 70 L 105 70" stroke-width="3"/>
+    <path d="M 75 70 L 75 85" stroke-width="3"/>
+    <path d="M 105 70 L 105 85" stroke-width="3"/>
+    <!-- Center diagonal stroke -->
+    <path d="M 85 95 L 75 120 L 105 120" stroke-width="4" fill="none"/>
+    <!-- Lower box -->
+    <path d="M 65 140 L 115 140" stroke-width="4"/>
+    <path d="M 65 170 L 115 170" stroke-width="4"/>
+    <path d="M 90 120 L 90 185" stroke-width="4"/>
+    <!-- Bottom tie -->
+    <path d="M 50 185 L 130 185" stroke-width="5"/>
+    <!-- Dot -->
+    <circle cx="90" cy="155" r="5" fill="#2e7d32" stroke="#1b5e20" stroke-width="2"/>
+  </symbol>
+  <symbol id="tile-face-33" viewBox="0 0 180 240">
+<!-- White Dragon - traditional blank framed tile -->
+    <rect x="45" y="55" width="90" height="130" rx="4" ry="4" fill="none" stroke="#1565c0" stroke-width="5"/>
+    <rect x="52" y="62" width="76" height="116" rx="2" ry="2" fill="none" stroke="#1565c0" stroke-width="2.5"/>
+    <!-- Corner ornaments -->
+    <circle cx="52" cy="62" r="3" fill="#1565c0"/>
+    <circle cx="128" cy="62" r="3" fill="#1565c0"/>
+    <circle cx="52" cy="178" r="3" fill="#1565c0"/>
+    <circle cx="128" cy="178" r="3" fill="#1565c0"/>
+  </symbol>
+  </defs>
+  <use href="#tile-frame" x="20" y="20"/>
+  <use href="#tile-face-0" x="20" y="20"/>
+  <use href="#tile-frame" x="220" y="20"/>
+  <use href="#tile-face-1" x="220" y="20"/>
+  <use href="#tile-frame" x="420" y="20"/>
+  <use href="#tile-face-2" x="420" y="20"/>
+  <use href="#tile-frame" x="620" y="20"/>
+  <use href="#tile-face-3" x="620" y="20"/>
+  <use href="#tile-frame" x="820" y="20"/>
+  <use href="#tile-face-4" x="820" y="20"/>
+  <use href="#tile-frame" x="1020" y="20"/>
+  <use href="#tile-face-5" x="1020" y="20"/>
+  <use href="#tile-frame" x="1220" y="20"/>
+  <use href="#tile-face-6" x="1220" y="20"/>
+  <use href="#tile-frame" x="1420" y="20"/>
+  <use href="#tile-face-7" x="1420" y="20"/>
+  <use href="#tile-frame" x="1620" y="20"/>
+  <use href="#tile-face-8" x="1620" y="20"/>
+  <use href="#tile-frame" x="20" y="280"/>
+  <use href="#tile-face-9" x="20" y="280"/>
+  <use href="#tile-frame" x="220" y="280"/>
+  <use href="#tile-face-10" x="220" y="280"/>
+  <use href="#tile-frame" x="420" y="280"/>
+  <use href="#tile-face-11" x="420" y="280"/>
+  <use href="#tile-frame" x="620" y="280"/>
+  <use href="#tile-face-12" x="620" y="280"/>
+  <use href="#tile-frame" x="820" y="280"/>
+  <use href="#tile-face-13" x="820" y="280"/>
+  <use href="#tile-frame" x="1020" y="280"/>
+  <use href="#tile-face-14" x="1020" y="280"/>
+  <use href="#tile-frame" x="1220" y="280"/>
+  <use href="#tile-face-15" x="1220" y="280"/>
+  <use href="#tile-frame" x="1420" y="280"/>
+  <use href="#tile-face-16" x="1420" y="280"/>
+  <use href="#tile-frame" x="1620" y="280"/>
+  <use href="#tile-face-17" x="1620" y="280"/>
+  <use href="#tile-frame" x="20" y="540"/>
+  <use href="#tile-face-18" x="20" y="540"/>
+  <use href="#tile-frame" x="220" y="540"/>
+  <use href="#tile-face-19" x="220" y="540"/>
+  <use href="#tile-frame" x="420" y="540"/>
+  <use href="#tile-face-20" x="420" y="540"/>
+  <use href="#tile-frame" x="620" y="540"/>
+  <use href="#tile-face-21" x="620" y="540"/>
+  <use href="#tile-frame" x="820" y="540"/>
+  <use href="#tile-face-22" x="820" y="540"/>
+  <use href="#tile-frame" x="1020" y="540"/>
+  <use href="#tile-face-23" x="1020" y="540"/>
+  <use href="#tile-frame" x="1220" y="540"/>
+  <use href="#tile-face-24" x="1220" y="540"/>
+  <use href="#tile-frame" x="1420" y="540"/>
+  <use href="#tile-face-25" x="1420" y="540"/>
+  <use href="#tile-frame" x="1620" y="540"/>
+  <use href="#tile-face-26" x="1620" y="540"/>
+  <use href="#tile-frame" x="20" y="800"/>
+  <use href="#tile-face-27" x="20" y="800"/>
+  <use href="#tile-frame" x="220" y="800"/>
+  <use href="#tile-face-28" x="220" y="800"/>
+  <use href="#tile-frame" x="420" y="800"/>
+  <use href="#tile-face-29" x="420" y="800"/>
+  <use href="#tile-frame" x="620" y="800"/>
+  <use href="#tile-face-30" x="620" y="800"/>
+  <use href="#tile-frame" x="820" y="800"/>
+  <use href="#tile-face-31" x="820" y="800"/>
+  <use href="#tile-frame" x="1020" y="800"/>
+  <use href="#tile-face-32" x="1020" y="800"/>
+  <use href="#tile-frame" x="1220" y="800"/>
+  <use href="#tile-face-33" x="1220" y="800"/>
+</svg>

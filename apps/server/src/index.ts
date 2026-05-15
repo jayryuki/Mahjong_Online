@@ -5,6 +5,9 @@ import express from 'express';
 import { MahjongRoom } from './rooms/MahjongRoom.js';
 import { RoomCodeService } from './services/RoomCodeService.js';
 
+// Access the local rooms map from matchMaker for real-time data
+const getLocalRoomById = (matchMaker as any).getLocalRoomById.bind(matchMaker) as (roomId: string) => MahjongRoom | undefined;
+
 const app = express();
 app.use(express.json());
 
@@ -36,6 +39,58 @@ app.post('/api/rooms', async (req, res) => {
   }
 });
 
+app.get('/api/rooms', async (_req, res) => {
+  try {
+    const allEntries = [...roomCodeService.getAll().entries()]; // [code, roomId]
+    if (allEntries.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const result = [];
+
+    for (const [code, roomId] of allEntries) {
+      const room = getLocalRoomById(roomId);
+      if (room) {
+        const state = room.state as any;
+        let hostName = '';
+        if (state.players) {
+          for (const p of state.players.values()) {
+            if (p.isHost) { hostName = p.displayName; break; }
+          }
+        }
+        result.push({
+          roomId,
+          roomCode: code,
+          hostName,
+          playerCount: room.clients.length,
+          maxPlayers: room.maxClients,
+          openSlots: room.maxClients - room.clients.length,
+          status: state.status ?? 'lobby',
+          wallRemaining: state.wallRemaining ?? 0,
+        });
+      } else {
+        // Room no longer in memory — remove stale entry
+        roomCodeService.remove(code);
+      }
+    }
+
+    res.json(result);
+  } catch (err) {
+    const fallback = [...roomCodeService.getAll().entries()].map(([code, id]) => ({
+      roomId: id,
+      roomCode: code,
+      hostName: '',
+      playerCount: 0,
+      maxPlayers: 4,
+      openSlots: 4,
+      status: 'lobby',
+      wallRemaining: 0,
+    }));
+    res.json(fallback);
+  }
+});
+
 app.get('/api/rooms/:code', (req, res) => {
   const roomId = roomCodeService.getRoomId(req.params.code);
   if (roomId) {
@@ -49,3 +104,11 @@ const PORT: number = parseInt(process.env.PORT || '2567', 10);
 gameServer.listen(PORT).then(() => {
   console.log(`Mahjong server running on port ${PORT}`);
 });
+
+// Graceful shutdown so node --watch doesn't leave the port occupied
+function shutdown() {
+  server.close();
+  process.exit(0);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

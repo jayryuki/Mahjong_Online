@@ -24,7 +24,7 @@ export function HonorTile({ honorName, width = 48, height = 64, selected, onClic
         textAnchor="middle"
         dominantBaseline="central"
         fill="var(--tile-stroke)"
-        fontSize={width * (isWind ? 0.48 : 0.55)}
+        fontSize={width * (isWind ? 0.38 : 0.42)}
         fontFamily="'Newsreader', Georgia, serif"
         fontWeight="400"
       >

@@ -36,14 +36,22 @@ import type {
 function findChiOptions(concealed: TileDef[], discardTile: TileDef): Array<[number, number]> {
   if (!discardTile.suit || !discardTile.rank) return [];
   const options: Array<[number, number]> = [];
-  const sameSuit = concealed.filter((t) => t.suit === discardTile.suit && t.rank !== undefined);
 
-  for (let i = 0; i < sameSuit.length; i++) {
-    for (let j = i + 1; j < sameSuit.length; j++) {
-      const ranks = [sameSuit[i].rank!, sameSuit[j].rank!, discardTile.rank!].sort((a, b) => a - b);
+  // Map same-suit tiles to their indices in the concealed array
+  const sameSuitIndices: number[] = [];
+  for (let ci = 0; ci < concealed.length; ci++) {
+    const t = concealed[ci];
+    if (t.suit === discardTile.suit && t.rank !== undefined) {
+      sameSuitIndices.push(ci);
+    }
+  }
+
+  for (let i = 0; i < sameSuitIndices.length; i++) {
+    for (let j = i + 1; j < sameSuitIndices.length; j++) {
+      const idx1 = sameSuitIndices[i];
+      const idx2 = sameSuitIndices[j];
+      const ranks = [concealed[idx1].rank!, concealed[idx2].rank!, discardTile.rank!].sort((a, b) => a - b);
       if (ranks[2] - ranks[0] === 2 && ranks[1] - ranks[0] === 1) {
-        const idx1 = concealed.indexOf(sameSuit[i]);
-        const idx2 = concealed.indexOf(sameSuit[j]);
         options.push([idx1, idx2]);
       }
     }
