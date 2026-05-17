@@ -100,15 +100,7 @@ app.get('/api/rooms/:code', (req, res) => {
   }
 });
 
-const PORT: number = parseInt(process.env.PORT || '2567', 10);
+const PORT: number = parseInt(process.env.PORT || '2500', 10);
 gameServer.listen(PORT).then(() => {
   console.log(`Mahjong server running on port ${PORT}`);
 });
-
-// Graceful shutdown so node --watch doesn't leave the port occupied
-function shutdown() {
-  server.close();
-  process.exit(0);
-}
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
