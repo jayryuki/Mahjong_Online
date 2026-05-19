@@ -52,7 +52,11 @@ export interface HandDecomposition {
 export function isValidWinningShape(concealed: TileDef[], meldCount: number): boolean {
   const neededMelds = 4 - meldCount;
   const neededTiles = neededMelds * 3 + 2;
-  if (concealed.length !== neededTiles) return false;
+  if (concealed.length !== neededTiles) {
+    // Also accept seven pairs (14 tiles, 0 melds)
+    if (meldCount === 0 && concealed.length === 14 && isSevenPairs(concealed)) return true;
+    return false;
+  }
   return findWinningDecomposition(concealed, meldCount);
 }
 

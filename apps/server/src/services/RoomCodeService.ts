@@ -1,4 +1,3 @@
-const EXCLUDE_CHARS = new Set(['O', '0', 'I', '1', 'L']);
 const CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'.split('');
 const CODE_LENGTH = 6;
 

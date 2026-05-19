@@ -1,4 +1,3 @@
-import React from 'react';
 
 interface SeatMapProps {
   players: Array<{ playerId: string; displayName: string; seatIndex: number; isReady: boolean; isHost: boolean }>;

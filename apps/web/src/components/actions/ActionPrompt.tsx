@@ -3,6 +3,7 @@ import { Button } from '../common/Button.js';
 import { TileRenderer } from '../common/TileRenderer.js';
 import { useScale } from '../../hooks/useScale.js';
 import { TileDef } from '@mahjong/game-core';
+import { parseTileId } from '../../lib/tile-utils.js';
 
 interface ChiOption {
   tileIds: string[];
@@ -33,34 +34,15 @@ const HIDDEN_ACTIONS = new Set(['DISCARD_TILE']);
 
 const REACTION_ACTIONS = new Set(['CALL_CHI', 'CALL_PON', 'CALL_KAN_OPEN', 'CALL_KAN_ADDED', 'DECLARE_WIN_RON']);
 
-function renderDiscardTile(tile: TileDef, w: number, h: number) {
+function renderTile(tile: TileDef, w: number, h: number) {
   return <TileRenderer tile={tile} width={w} height={h} />;
-}
-
-function renderMiniTile(tile: TileDef, w: number, h: number) {
-  return <TileRenderer tile={tile} width={w} height={h} />;
-}
-
-function parseTileIdAction(id: string): TileDef {
-  const parts = id.split('-');
-  const suitNames = ['man', 'pin', 'sou'];
-  const windNames = ['east', 'south', 'west', 'north'];
-  const dragonNames = ['haku', 'hatsu', 'chun'];
-  const honorNames = [...windNames, ...dragonNames];
-
-  if (suitNames.includes(parts[0])) {
-    return { id, suit: parts[0] as any, rank: parseInt(parts[1], 10), isFlower: false };
-  } else if (honorNames.includes(parts[0])) {
-    return { id, honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon', honorName: parts[0] as any, isFlower: false };
-  }
-  return { id, isFlower: false };
 }
 
 export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOptions }: ActionPromptProps) {
   const [showChiPicker, setShowChiPicker] = useState(false);
   const scale = useScale();
-  const discardTileW = Math.round(96 * scale);
-  const discardTileH = Math.round(135 * scale);
+  const discardTileW = Math.round(64 * scale);
+  const discardTileH = Math.round(90 * scale);
   const miniTileW = Math.round(54 * scale);
   const miniTileH = Math.round(75 * scale);
   const visibleActions = actions.filter(a => !HIDDEN_ACTIONS.has(a));
@@ -75,13 +57,13 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: '1rem',
-      padding: '0.375rem 0',
+      gap: '0.5rem',
+      padding: '0.2rem 0',
       ...(showDiscardTile && {
         background: 'rgba(184, 92, 58, 0.12)',
-        borderRadius: '12px',
+        borderRadius: '8px',
         border: '1px solid rgba(184, 92, 58, 0.25)',
-        padding: '0.625rem 1rem',
+        padding: '0.375rem 0.5rem',
       }),
     }}>
       {showDiscardTile && (
@@ -91,7 +73,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
           alignItems: 'center',
           gap: '4px',
         }}>
-          <span style={{ fontSize: `${1.375 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-warm)', fontWeight: 700 }}>
+          <span style={{ fontSize: `${1 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-warm)', fontWeight: 700 }}>
             Discarded
           </span>
           <div style={{
@@ -100,7 +82,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
             borderRadius: '8px',
             boxShadow: '0 0 14px rgba(184, 92, 58, 0.5)',
           }}>
-            {renderDiscardTile(discardTile, discardTileW, discardTileH)}
+            {renderTile(discardTile, discardTileW, discardTileH)}
           </div>
           {isWild && <span style={{ fontSize: `${1.125 * scale}rem`, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.15)', padding: '1px 6px', borderRadius: '3px' }}>WILD</span>}
         </div>
@@ -129,9 +111,9 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
               style={{
                 ...(isWin ? { animation: 'pulse 1.5s infinite' } : {}),
                 animation: isWin ? 'pulse 1.5s infinite' : 'fadeInUp 250ms ease-out',
-                fontSize: `${2.125 * scale}rem`,
-                padding: '0.625rem 1.25rem',
-                ...(isPass && { opacity: 0.7, fontSize: `${1.875 * scale}rem`, padding: '0.5rem 1rem' }),
+                fontSize: `${1.5 * scale}rem`,
+                padding: '0.375rem 0.75rem',
+                ...(isPass && { opacity: 0.7, fontSize: `${1.25 * scale}rem`, padding: '0.25rem 0.5rem' }),
               }}
             >
               {ACTION_LABELS[action] || action}
@@ -156,7 +138,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
             Choose Chi
           </div>
           {chiOptions.map((opt, idx) => {
-            const optTiles = opt.tileIds.map(parseTileIdAction);
+            const optTiles = opt.tileIds.map(parseTileId);
             const allSeqTiles = discardTile
               ? [...optTiles, discardTile].sort((a, b) => {
                   const sk = (t: TileDef) => t.suit ? `${['man','pin','sou'].indexOf(t.suit)}${(t.rank??0).toString().padStart(2,'0')}` : `9${t.honorName??''}`;
@@ -192,7 +174,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
                     padding: 1,
                     position: 'relative',
                   }}>
-                    {renderMiniTile(t, miniTileW, miniTileH)}
+                    {renderTile(t, miniTileW, miniTileH)}
                     {t.id === discardId && (
                       <div style={{
                         position: 'absolute',

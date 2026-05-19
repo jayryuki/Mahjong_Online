@@ -92,7 +92,7 @@ describe('evaluateHKPatterns', () => {
     const patterns = evaluateHKPatterns(concealed, [], 'tsumo', 'east', 'east');
     const flush = patterns.find(p => p.id === 'full-flush');
     expect(flush).toBeDefined();
-    expect(flush!.fanValue).toBe(6);
+    expect(flush!.fanValue).toBe(7);
   });
 });
 
@@ -129,7 +129,7 @@ describe('calculateHKScore', () => {
   it('dealer winner gets paid by all 3 others', () => {
     const patterns = [{ id: 'dragon-haku', name: 'Dragon Pung', fanValue: 1, description: '' }];
     const result = calculateHKScore(patterns, false, true);
-    expect(result.total).toBe(6); // 2 points × 3 players
+    expect(result.total).toBe(12); // 4 points × 3 players (dealer tsumo: all pay double)
   });
 
   it('non-dealer winner: dealer pays double', () => {

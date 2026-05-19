@@ -49,7 +49,8 @@ function canTsumo(round: RoundState, seatIndex: number): boolean {
 }
 
 function canRon(round: RoundState, seatIndex: number): boolean {
-  return round.reaction !== null;
+  // Ron (win by discard) is not allowed in self-draw-only rules
+  return false;
 }
 
 function canPon(round: RoundState, seatIndex: number, preset: RulesPreset): boolean {

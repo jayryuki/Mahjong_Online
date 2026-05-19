@@ -1,31 +1,11 @@
-import React from 'react';
 import { TileRenderer } from '../common/TileRenderer.js';
 import { useScale } from '../../hooks/useScale.js';
 import { TileDef } from '@mahjong/game-core';
-
-function parseTileId(id: string): TileDef {
-  const parts = id.split('-');
-  const suitNames = ['man', 'pin', 'sou'];
-  const windNames = ['east', 'south', 'west', 'north'];
-  const dragonNames = ['haku', 'hatsu', 'chun'];
-  const honorNames = [...windNames, ...dragonNames];
-
-  if (suitNames.includes(parts[0])) {
-    return { id, suit: parts[0] as 'man' | 'pin' | 'sou', rank: parseInt(parts[1], 10), isFlower: false };
-  } else if (honorNames.includes(parts[0])) {
-    return { id, honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon', honorName: parts[0] as any, isFlower: false };
-  }
-  return { id, isFlower: false };
-}
-
-interface Meld {
-  type: string;
-  tiles: any[];
-  isConcealed: boolean;
-}
+import { parseTileId } from '../../lib/tile-utils.js';
+import type { MeldDisplay } from '../../lib/types.js';
 
 interface MeldAreaProps {
-  melds: Meld[];
+  melds: MeldDisplay[];
 }
 
 function renderSmallTile(tile: TileDef, w: number, h: number) {

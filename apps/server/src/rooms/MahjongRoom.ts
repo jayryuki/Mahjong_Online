@@ -76,7 +76,7 @@ export class MahjongRoom extends Room<GameState> {
   private handNumber = 1;
   private honba = 0;
   private riichiSticks = 0;
-  private scores: number[] = [25000, 25000, 25000, 25000];
+  private scores: number[] = [300, 300, 300, 300];
   private reactionState: ReactionState | null = null;
   private handVersions: number[] = [0, 0, 0, 0];
   private botTimers: Map<string, NodeJS.Timeout> = new Map();
@@ -431,7 +431,7 @@ export class MahjongRoom extends Room<GameState> {
     this.state.status = 'in-progress';
 
     // Initialize match state
-    this.scores = [25000, 25000, 25000, 25000];
+    this.scores = [300, 300, 300, 300];
     this.dealerSeat = 0;
     this.roundWind = 'east';
     this.handNumber = 1;
@@ -1134,9 +1134,6 @@ export class MahjongRoom extends Room<GameState> {
       case 'chi':
         this.applyChi(winnerSeat, reaction.discardSeat, reaction.discardTile, response.tiles);
         break;
-      case 'kan-open':
-        this.applyPon(winnerSeat, reaction.discardSeat, reaction.discardTile);
-        break;
       default:
         this.advanceToNextPlayer(reaction.discardSeat);
         break;
@@ -1180,14 +1177,12 @@ export class MahjongRoom extends Room<GameState> {
     const isDealer = winnerSeat === this.dealerSeat;
     for (let i = 0; i < 4; i++) {
       if (i === winnerSeat) continue;
-      const amount = (isDealer && i !== winnerSeat)
-        ? scoreResult.totalPerPlayer * 2 // Non-winners: dealer pays double, others pay base
-        : scoreResult.totalPerPlayer;
-      // Actually recalculate properly
       let payAmount: number;
       if (isDealer) {
+        // Dealer tsumo: all non-dealers pay the same (already doubled in calculator)
         payAmount = scoreResult.totalPerPlayer;
       } else {
+        // Non-dealer tsumo: dealer pays double, others pay base
         payAmount = i === this.dealerSeat ? scoreResult.totalPerPlayer * 2 : scoreResult.totalPerPlayer;
       }
       this.scores[i] -= payAmount;
@@ -1275,8 +1270,8 @@ export class MahjongRoom extends Room<GameState> {
     let nextHonba = this.honba;
 
     if (dealerWon) {
-      // Dealer stays
-      nextHonba = this.honba;
+      // Dealer stays, honba increments (renchan)
+      nextHonba = this.honba + 1;
     } else if (wasExhaustiveDraw) {
       // Exhaustive draw — dealer stays, honba already incremented
       nextHonba = this.honba;

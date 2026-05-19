@@ -2,21 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TileRenderer } from '../common/TileRenderer.js';
 import { useScale } from '../../hooks/useScale.js';
 import { TileDef, tileSortKey } from '@mahjong/game-core';
-
-function parseTileId(id: string): TileDef {
-  const parts = id.split('-');
-  const suitNames = ['man', 'pin', 'sou'];
-  const windNames = ['east', 'south', 'west', 'north'];
-  const dragonNames = ['haku', 'hatsu', 'chun'];
-  const honorNames = [...windNames, ...dragonNames];
-
-  if (suitNames.includes(parts[0])) {
-    return { id, suit: parts[0] as 'man' | 'pin' | 'sou', rank: parseInt(parts[1], 10), isFlower: false };
-  } else if (honorNames.includes(parts[0])) {
-    return { id, honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon', honorName: parts[0] as any, isFlower: false };
-  }
-  return { id, isFlower: false };
-}
+import { parseTileId } from '../../lib/tile-utils.js';
 
 /** Minimum tile width before we allow wrapping to more rows */
 const MIN_TILE_W = 28;

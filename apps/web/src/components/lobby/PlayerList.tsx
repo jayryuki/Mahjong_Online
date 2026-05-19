@@ -1,4 +1,3 @@
-import React from 'react';
 
 interface PlayerListProps {
   players: Array<{ displayName: string; isConnected: boolean; isReady: boolean }>;

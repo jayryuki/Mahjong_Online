@@ -1,28 +1,8 @@
-import React from 'react';
 import { TileRenderer } from '../common/TileRenderer.js';
 import { useScale } from '../../hooks/useScale.js';
 import { TileDef } from '@mahjong/game-core';
-
-function parseTileId(id: string): TileDef {
-  const parts = id.split('-');
-  const suitNames = ['man', 'pin', 'sou'];
-  const windNames = ['east', 'south', 'west', 'north'];
-  const dragonNames = ['haku', 'hatsu', 'chun'];
-  const honorNames = [...windNames, ...dragonNames];
-
-  if (suitNames.includes(parts[0])) {
-    return { id, suit: parts[0] as 'man' | 'pin' | 'sou', rank: parseInt(parts[1], 10), isFlower: false };
-  } else if (honorNames.includes(parts[0])) {
-    return { id, honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon', honorName: parts[0] as any, isFlower: false };
-  }
-  return { id, isFlower: false };
-}
-
-interface MeldDisplay {
-  type: string;
-  tiles: any[];
-  isConcealed: boolean;
-}
+import { parseTileId } from '../../lib/tile-utils.js';
+import type { MeldDisplay } from '../../lib/types.js';
 
 interface SeatPositionProps {
   position: 'top' | 'left' | 'right';
@@ -38,8 +18,8 @@ interface SeatPositionProps {
 
 const SEAT_WIND_LABELS = ['E', 'S', 'W', 'N'];
 
-const BASE_MELD_TILE_W = 45;
-const BASE_MELD_TILE_H = 63;
+const BASE_MELD_TILE_W = 34;
+const BASE_MELD_TILE_H = 47;
 
 function renderMeldTile(tile: TileDef, w: number, h: number) {
   return <TileRenderer tile={tile} width={w} height={h} />;

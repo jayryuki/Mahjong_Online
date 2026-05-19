@@ -1,4 +1,3 @@
-import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/common/Button.js';
 import { ThemeToggle } from '../components/common/ThemeToggle.js';

@@ -1,187 +1,203 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TileRenderer } from '../common/TileRenderer.js';
 import { useScale } from '../../hooks/useScale.js';
 import { TileDef } from '@mahjong/game-core';
-
-interface SeatDisplay {
-  seatIndex: number;
-  displayName: string;
-  tileCount: number;
-  isDealer: boolean;
-  isActive: boolean;
-  isRiichi: boolean;
-  melds: Array<{ type: string; tiles: any[]; isConcealed: boolean }>;
-  river: Array<{ tile: TileDef; isLastDiscard?: boolean }>;
-  score: number;
-}
+import type { SeatDisplay } from '../../lib/types.js';
 
 interface CenterRiverProps {
   mySeat: number;
   seats: SeatDisplay[];
 }
 
-const BASE_TILE_W = 58;
-const BASE_TILE_H = 80;
-const TILE_ASPECT = BASE_TILE_W / BASE_TILE_H;
+const TILES_PER_ROW = 6;
 const GAP = 3;
-const PADDING = 4;
 
 interface RiverEntry {
   tile: TileDef;
-  seatIndex: number;
   isLastDiscard: boolean;
   key: string;
 }
 
-function computeGridLayout(
-  containerW: number,
-  containerH: number,
-  tileCount: number
-): { cols: number; rows: number; tileW: number; tileH: number } {
-  if (tileCount === 0 || containerW <= 0 || containerH <= 0) {
-    return { cols: 0, rows: 0, tileW: 0, tileH: 0 };
+interface QuadrantLayout {
+  style: React.CSSProperties;
+  maxW: number;
+  maxH: number;
+  /** flex-direction for the row container */
+  rowDirection: 'row' | 'row-reverse';
+  /** flex-direction for the column of rows */
+  columnDirection: 'column' | 'column-reverse';
+  /** alignment of rows within the column */
+  rowAlign: 'flex-start' | 'flex-end';
+}
+
+function computeLayouts(tableW: number, tableH: number) {
+  const aspect = 58 / 80;
+  const gap = 8;
+
+  const centerW = tableW * 0.6;
+  const centerH = tableH * 0.6;
+  const quadW = (centerW - gap) / 2;
+  const quadH = (centerH - gap) / 2;
+
+  // Tile size: fit 3 columns in a quadrant
+  const targetCols = 3;
+  let tileW = (quadW - GAP * (targetCols - 1)) / targetCols;
+  let tileH = tileW / aspect;
+
+  const maxRows = 4;
+  if (tileH * maxRows + (maxRows - 1) * GAP > quadH) {
+    tileH = (quadH - (maxRows - 1) * GAP) / maxRows;
+    tileW = tileH * aspect;
   }
 
-  const innerW = containerW - PADDING * 2;
-  const innerH = containerH - PADDING * 2;
+  // Quadrant positions (each river anchored to its corner, grows toward center)
+  // Layout:  Top(2)    | Right(1)
+  //          Left(3)   | Bottom(0)
+  const layouts: Record<number, QuadrantLayout> = {
+    0: { // bottom-right: anchored bottom-right, grows up-left toward center
+      style: {
+        position: 'absolute',
+        right: `calc(50% - ${centerW / 2}px)`,
+        bottom: `calc(50% - ${centerH / 2}px)`,
+      },
+      maxW: quadW, maxH: quadH,
+      rowDirection: 'row-reverse',      // tiles grow leftward
+      columnDirection: 'column-reverse', // rows grow upward
+      rowAlign: 'flex-end',             // align rows to bottom
+    },
+    1: { // top-right: anchored top-right, grows down-left toward center
+      style: {
+        position: 'absolute',
+        right: `calc(50% - ${centerW / 2}px)`,
+        top: `calc(50% - ${centerH / 2}px)`,
+      },
+      maxW: quadW, maxH: quadH,
+      rowDirection: 'row-reverse',   // tiles grow leftward
+      columnDirection: 'column',     // rows grow downward
+      rowAlign: 'flex-start',        // align rows to top
+    },
+    2: { // top-left: anchored top-left, grows down-right toward center
+      style: {
+        position: 'absolute',
+        left: `calc(50% - ${centerW / 2}px)`,
+        top: `calc(50% - ${centerH / 2}px)`,
+      },
+      maxW: quadW, maxH: quadH,
+      rowDirection: 'row',           // tiles grow rightward
+      columnDirection: 'column',     // rows grow downward
+      rowAlign: 'flex-start',        // align rows to top
+    },
+    3: { // bottom-left: anchored bottom-left, grows up-right toward center
+      style: {
+        position: 'absolute',
+        left: `calc(50% - ${centerW / 2}px)`,
+        bottom: `calc(50% - ${centerH / 2}px)`,
+      },
+      maxW: quadW, maxH: quadH,
+      rowDirection: 'row',            // tiles grow rightward
+      columnDirection: 'column-reverse', // rows grow upward
+      rowAlign: 'flex-end',           // align rows to bottom
+    },
+  };
 
-  let bestCols = 1;
-  let bestArea = 0;
+  return { tileW, tileH, layouts };
+}
 
-  const maxColsToTry = Math.min(tileCount, Math.floor(innerW / 12));
+function RiverSection({
+  entries, tileW, tileH, cols, layout: ql,
+}: {
+  entries: RiverEntry[]; tileW: number; tileH: number; cols: number;
+  layout: QuadrantLayout;
+}) {
+  const rows = Math.ceil(entries.length / cols);
 
-  for (let cols = 1; cols <= maxColsToTry; cols++) {
-    const rows = Math.ceil(tileCount / cols);
-    const availW = innerW - (cols - 1) * GAP;
-    const availH = innerH - (rows - 1) * GAP;
-
-    if (availW <= 0 || availH <= 0) continue;
-
-    const fitW = availW / cols;
-    const fitH = availH / rows;
-
-    let tileW: number, tileH: number;
-    if (fitW / TILE_ASPECT <= fitH) {
-      tileW = fitW;
-      tileH = fitW / TILE_ASPECT;
-    } else {
-      tileH = fitH;
-      tileW = fitH * TILE_ASPECT;
-    }
-
-    tileW = Math.min(tileW, BASE_TILE_W);
-    tileH = Math.min(tileH, BASE_TILE_H);
-
-    const area = tileW * tileH;
-    if (area > bestArea) {
-      bestArea = area;
-      bestCols = cols;
-    }
-  }
-
-  const rows = Math.ceil(tileCount / bestCols);
-  const availW = innerW - (bestCols - 1) * GAP;
-  const availH = innerH - (rows - 1) * GAP;
-
-  let tileW: number, tileH: number;
-  if (availW / bestCols / TILE_ASPECT <= availH / rows) {
-    tileW = Math.min(availW / bestCols, BASE_TILE_W);
-    tileH = tileW / TILE_ASPECT;
-    if (tileH > BASE_TILE_H) {
-      tileH = BASE_TILE_H;
-      tileW = tileH * TILE_ASPECT;
-    }
-  } else {
-    tileH = Math.min(availH / rows, BASE_TILE_H);
-    tileW = tileH * TILE_ASPECT;
-    if (tileW > BASE_TILE_W) {
-      tileW = BASE_TILE_W;
-      tileH = tileW / TILE_ASPECT;
-    }
-  }
-
-  return { cols: bestCols, rows, tileW, tileH };
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: ql.columnDirection,
+      gap: `${GAP}px`,
+      alignItems: ql.rowAlign,
+    }}>
+      {Array.from({ length: rows }, (_, rowIdx) => {
+        const rowTiles = entries.slice(rowIdx * cols, (rowIdx + 1) * cols);
+        return (
+          <div key={rowIdx} style={{
+            display: 'flex',
+            gap: `${GAP}px`,
+            flexDirection: ql.rowDirection,
+          }}>
+            {rowTiles.map((entry) => (
+              <div
+                key={entry.key}
+                style={{
+                  width: `${tileW}px`, height: `${tileH}px`,
+                  opacity: entry.isLastDiscard ? 1 : 0.75,
+                  transition: 'opacity 200ms ease',
+                  ...(entry.isLastDiscard ? {
+                    boxShadow: '0 0 10px 4px rgba(184, 92, 58, 0.6), 0 0 20px 6px rgba(251, 191, 36, 0.3)',
+                    borderRadius: '3px',
+                    animation: 'tileDropIn 400ms ease-out',
+                  } : {}),
+                }}
+                className={entry.isLastDiscard ? 'river-glow' : undefined}
+              >
+                <TileRenderer tile={entry.tile} width={tileW} height={tileH} />
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function CenterRiver({ mySeat, seats }: CenterRiverProps) {
   const scale = useScale();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
-  const prevCountRef = useRef(0);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) {
-        setContainerSize({
-          w: entry.contentRect.width,
-          h: entry.contentRect.height,
-        });
-      }
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r) setContainerSize({ w: r.width, h: r.height });
     });
-    observer.observe(el);
-    return () => observer.disconnect();
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  const allRiverTiles = useMemo(() => {
-    const entries: RiverEntry[] = [];
+  const seatRivers = useMemo(() => {
+    const rivers: Map<number, RiverEntry[]> = new Map();
     for (let offset = 0; offset < 4; offset++) {
       const seatIdx = (mySeat + offset) % 4;
       const seat = seats.find(s => s.seatIndex === seatIdx);
-      if (seat) {
-        for (let i = 0; i < seat.river.length; i++) {
-          entries.push({
-            tile: seat.river[i].tile,
-            seatIndex: seatIdx,
-            isLastDiscard: seat.river[i].isLastDiscard ?? false,
-            key: `s${seatIdx}-p${i}-${seat.river[i].tile.id}`,
-          });
-        }
+      if (seat && seat.river.length > 0) {
+        rivers.set(offset, seat.river.map((r, i) => ({
+          tile: r.tile,
+          isLastDiscard: r.isLastDiscard ?? false,
+          key: `s${seatIdx}-p${i}-${r.tile.id}`,
+        })));
       }
     }
-    return entries;
+    return rivers;
   }, [mySeat, seats]);
 
-  const totalCount = allRiverTiles.length;
+  const totalTiles = Array.from(seatRivers.values()).reduce((sum, r) => sum + r.length, 0);
 
-  const grid = useMemo(() => {
-    return computeGridLayout(containerSize.w, containerSize.h, totalCount);
-  }, [containerSize.w, containerSize.h, totalCount]);
-
-  useEffect(() => {
-    if (totalCount === 0) {
-      prevCountRef.current = 0;
-    }
-  }, [totalCount]);
-
-  const isAnimatable = (index: number, entry: RiverEntry) => {
-    return entry.isLastDiscard && index >= prevCountRef.current - 1;
-  };
-
-  useEffect(() => {
-    prevCountRef.current = totalCount;
-  }, [totalCount]);
-
-  const { cols, tileW, tileH } = grid;
+  const tableW = containerSize.w || 400;
+  const tableH = containerSize.h || 300;
+  const { tileW, tileH, layouts } = computeLayouts(tableW, tableH);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        overflow: 'hidden',
-        background: 'radial-gradient(ellipse at center, rgba(45,90,61,0.15) 0%, transparent 70%)',
-      }}
-    >
-      {totalCount === 0 && (
+    <div ref={containerRef} style={{
+      position: 'absolute', inset: 0,
+      overflow: 'hidden',
+      background: 'radial-gradient(ellipse at center, rgba(45,90,61,0.15) 0%, transparent 70%)',
+    }}>
+      {totalTiles === 0 && (
         <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
+          position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
           fontSize: `${1.125 * scale}rem`,
           color: 'rgba(255,255,255,0.2)',
@@ -190,44 +206,28 @@ export function CenterRiver({ mySeat, seats }: CenterRiverProps) {
           Discard pile
         </div>
       )}
-      {totalCount > 0 && cols > 0 && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          display: 'grid',
-          gridTemplateColumns: `repeat(${cols}, ${tileW}px)`,
-          gridTemplateRows: `repeat(${grid.rows}, ${tileH}px)`,
-          gap: `${GAP}px`,
-          padding: `${PADDING}px`,
-          placeItems: 'center',
-          transition: 'all 300ms ease',
-        }}>
-          {allRiverTiles.map((entry, i) => {
-            const animate = isAnimatable(i, entry);
-            return (
-              <div
-                key={entry.key}
-                style={{
-                  width: `${tileW}px`,
-                  height: `${tileH}px`,
-                  opacity: entry.isLastDiscard ? 1 : 0.8,
-                  transition: 'width 300ms ease, height 300ms ease, opacity 200ms ease',
-                  ...(animate ? { animation: 'tileDropIn 400ms ease-out' } : {}),
-                  ...(entry.isLastDiscard ? {
-                    boxShadow: '0 0 10px 4px rgba(184, 92, 58, 0.6), 0 0 20px 6px rgba(251, 191, 36, 0.3)',
-                    borderRadius: '4px',
-                  } : {}),
-                }}
-                className={entry.isLastDiscard ? 'river-glow' : undefined}
-              >
-                <TileRenderer tile={entry.tile} width={tileW} height={tileH} />
-              </div>
-            );
-          })}
-        </div>
-      )}
+
+      {Array.from(seatRivers.entries()).map(([seatOffset, entries]) => {
+        const ql = layouts[seatOffset];
+        const cols = Math.min(TILES_PER_ROW, entries.length, Math.max(1, Math.floor((ql.maxW + GAP) / (tileW + GAP))));
+
+        return (
+          <div key={seatOffset} style={{
+            ...ql.style,
+            maxWidth: `${ql.maxW}px`,
+            maxHeight: `${ql.maxH}px`,
+            overflow: 'hidden',
+          }}>
+            <RiverSection
+              entries={entries}
+              tileW={tileW}
+              tileH={tileH}
+              cols={cols}
+              layout={ql}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

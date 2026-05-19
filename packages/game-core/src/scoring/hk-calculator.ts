@@ -50,12 +50,12 @@ export function calculateHKScore(
   let total: number;
 
   if (isDealer) {
-    // Other players (non-dealers) pay base amount
-    totalPerPlayer = doubledPoints;
-    total = doubledPoints * 3; // 3 players pay
+    // Dealer tsumo: all 3 non-dealers pay double the base
+    totalPerPlayer = doubledPoints * 2;
+    total = totalPerPlayer * 3;
     steps.push(`Dealer winner: 3 players × ${totalPerPlayer} = ${total}`);
   } else {
-    // Dealer pays double
+    // Non-dealer tsumo: dealer pays double, others pay base
     const dealerPays = doubledPoints * 2;
     const othersPay = doubledPoints;
     total = dealerPays + othersPay * 2; // dealer + 2 non-dealers

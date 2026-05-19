@@ -14,6 +14,5 @@ export function useTheme() {
     theme,
     set: (t: ThemeId) => setTheme(t),
     themes: THEMES,
-    isDark: theme === 'dark' || theme === 'midnight-ink' || theme === 'ember-jade',
   };
 }

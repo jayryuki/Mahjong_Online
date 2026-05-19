@@ -24,7 +24,7 @@ export class SeatRoundSchema extends Schema {
   @type('string') meldTypes: string = '';
   @type('string') meldTileIds: string = '';
   @type('string') riverTileIds: string = '';
-  @type('int32') score: number = 25000;
+  @type('int32') score: number = 300;
   @type('boolean') hasPassedReaction: boolean = false;
   @type('uint8') handVersion: number = 0;
 }

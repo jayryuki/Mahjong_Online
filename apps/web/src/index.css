@@ -289,11 +289,6 @@
   50% { opacity: 0.85; transform: scale(1.02); }
 }
 
-@keyframes turnBannerSlideIn {
-  0% { transform: translateY(-100%); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
 @keyframes chatGlow {
   0%, 100% { box-shadow: 0 0 8px 1px rgba(184, 92, 58, 0.4); }
   50% { box-shadow: 0 0 16px 4px rgba(184, 92, 58, 0.7); }

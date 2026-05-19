@@ -14,34 +14,8 @@ import { useScale } from '../hooks/useScale.js';
 import { clearRoom } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
 import { playTurnSound, playReactionSound } from '../lib/sounds.js';
-
-// Parse a tile ID string (e.g. "man-1-0", "pin-5-3", "east-0") into a TileDef object
-function parseTileId(id: string): TileDef {
-  const parts = id.split('-');
-  const suitNames = ['man', 'pin', 'sou'];
-  const windNames = ['east', 'south', 'west', 'north'];
-  const dragonNames = ['haku', 'hatsu', 'chun'];
-  const honorNames = [...windNames, ...dragonNames];
-
-  if (suitNames.includes(parts[0])) {
-    return {
-      id,
-      suit: parts[0] as 'man' | 'pin' | 'sou',
-      rank: parseInt(parts[1], 10),
-      isFlower: false,
-    };
-  } else if (honorNames.includes(parts[0])) {
-    return {
-      id,
-      honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon',
-      honorName: parts[0] as any,
-      isFlower: false,
-    };
-  }
-
-  // Fallback
-  return { id, isFlower: false };
-}
+import { parseTileId } from '../lib/tile-utils.js';
+import type { SeatDisplay } from '../lib/types.js';
 
 // Sort key for tiles
 function tileKey(t: TileDef): string {
@@ -64,18 +38,6 @@ function applyOrder(tiles: TileDef[], order: string[] | null): TileDef[] {
     if (bi !== undefined) return 1;
     return tileKey(a).localeCompare(tileKey(b));
   });
-}
-
-interface SeatDisplay {
-  seatIndex: number;
-  displayName: string;
-  tileCount: number;
-  isDealer: boolean;
-  isActive: boolean;
-  isRiichi: boolean;
-  melds: Array<{ type: string; tiles: any[]; isConcealed: boolean }>;
-  river: Array<{ tile: TileDef; isLastDiscard?: boolean }>;
-  score: number;
 }
 
 interface PlayerData {

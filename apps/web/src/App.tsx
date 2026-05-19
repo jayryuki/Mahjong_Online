@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { StartScreen } from './screens/StartScreen.js';
 import { CreateRoomScreen } from './screens/CreateRoomScreen.js';

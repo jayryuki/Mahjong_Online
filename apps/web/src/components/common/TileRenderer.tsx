@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { tileToImageName, getTileImageUrl } from '../../lib/tile-theme.js';
-import { getTheme, ThemeId } from '../../lib/theme.js';
+import { useTheme } from '../../hooks/useTheme.js';
 
 interface TileRendererProps {
   tile: {
@@ -14,20 +14,10 @@ interface TileRendererProps {
   onClick?: () => void;
 }
 
-function useTheme(): ThemeId {
-  const [theme, setTheme] = useState<ThemeId>(getTheme);
-  useEffect(() => {
-    const observer = new MutationObserver(() => setTheme(getTheme()));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => observer.disconnect();
-  }, []);
-  return theme;
-}
-
 const WIND_LABELS: Record<string, string> = { east: 'E', south: 'S', west: 'W', north: 'N' };
 
 export function TileRenderer({ tile, width = 72, height = 96, selected, onClick }: TileRendererProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
   const imageName = tileToImageName(tile);
   if (!imageName) return null;
 
@@ -78,29 +68,5 @@ export function TileRenderer({ tile, width = 72, height = 96, selected, onClick 
         </span>
       )}
     </div>
-  );
-}
-
-interface ImageTileBackProps {
-  width?: number;
-  height?: number;
-}
-
-export function ImageTileBack({ width = 72, height = 96 }: ImageTileBackProps) {
-  return (
-    <img
-      src={getTileImageUrl('back')}
-      alt="Face-down tile"
-      width={width}
-      height={height}
-      style={{
-        display: 'block',
-        borderRadius: '6px',
-        objectFit: 'contain',
-        background: 'var(--tile-back-bg)',
-        border: '1px solid var(--tile-face-border)',
-        boxSizing: 'border-box',
-      }}
-    />
   );
 }

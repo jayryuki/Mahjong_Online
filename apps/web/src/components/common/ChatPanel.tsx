@@ -49,7 +49,7 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
         <div style={{
           position: 'absolute',
           bottom: '100%',
-          left: 0,
+          right: 0,
           marginBottom: 4,
           width: Math.min(280, window.innerWidth - 24),
           background: 'var(--surface-panel)',

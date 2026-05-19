@@ -1,5 +1,6 @@
 import { TileDef, tileSortKey } from '../models/tile.js';
 import { Meld } from '../models/meld.js';
+import { isSevenPairs } from './validator.js';
 
 export interface HKFanMatch {
   id: string;
@@ -17,7 +18,7 @@ export function evaluateHKPatterns(
 ): HKFanMatch[] {
   const patterns: HKFanMatch[] = [];
   const allTiles = [...concealed, ...melds.flatMap(m => m.tiles)];
-  const isConcealed = melds.every(m => m.isConcealed) && melds.length === 0;
+  const isConcealed = melds.length === 0 || melds.every(m => m.isConcealed);
 
   // Gang / Kong (1 fan per gang)
   const gangCount = melds.filter(m => m.type === 'kan-open' || m.type === 'kan-closed' || m.type === 'kan-added').length;
@@ -81,7 +82,7 @@ export function evaluateHKPatterns(
   if (isFullFlush(allTiles)) {
     const halfIdx = patterns.findIndex(p => p.id === 'half-flush');
     if (halfIdx !== -1) patterns.splice(halfIdx, 1);
-    patterns.push({ id: 'full-flush', name: 'Full Flush', fanValue: 6, description: 'All tiles from one suit, no honors' });
+    patterns.push({ id: 'full-flush', name: 'Full Flush', fanValue: 7, description: 'All tiles from one suit, no honors' });
   }
 
   // Thirteen Orphans (13 fan)
@@ -95,6 +96,19 @@ export function evaluateHKPatterns(
   if (isNineGates(concealed)) {
     patterns.length = 0;
     patterns.push({ id: 'nine-gates', name: 'Nine Gates', fanValue: 8, description: '1-1-1-2-3-4-5-6-7-8-9-9-9 + any same suit' });
+    return patterns;
+  }
+
+  // Seven Pairs (2 fan)
+  if (melds.length === 0 && isSevenPairs(concealed)) {
+    patterns.length = 0;
+    patterns.push({ id: 'seven-pairs', name: 'Seven Pairs', fanValue: 2, description: 'Seven distinct pairs' });
+    return patterns;
+  }
+
+  // Common Hand (1 fan) — all sequences + non-value pair
+  if (patterns.length === 0 && melds.length === 0 && isCommonHand(concealed, seatWind, roundWind)) {
+    patterns.push({ id: 'common-hand', name: 'Common Hand', fanValue: 1, description: 'All sequences, non-value pair' });
     return patterns;
   }
 
@@ -149,15 +163,42 @@ function isAllPung(melds: Meld[], concealed: TileDef[]): boolean {
   // Check that all melds are pungs/kans
   if (!melds.every(m => m.type === 'pon' || m.type.startsWith('kan'))) return false;
 
-  // Also check that remaining concealed tiles only form pungs/pairs (no sequences)
+  // Decompose concealed tiles and verify all groups are pungs (no sequences)
   const groups = new Map<string, number>();
   for (const t of concealed) {
     const key = tileSortKey(t);
     groups.set(key, (groups.get(key) ?? 0) + 1);
   }
   const counts = Array.from(groups.values());
-  // Each group must be 3 (pung) or 2 (pair), with exactly one pair
-  return counts.every(c => c === 3 || c === 2) && counts.filter(c => c === 2).length === 1;
+  // Must have exactly one pair and all other groups must be triplets
+  if (counts.filter(c => c === 2).length !== 1) return false;
+  if (!counts.every(c => c === 3 || c === 2)) return false;
+
+  // Verify no sequences can be formed (count heuristic can false-positive)
+  // Check that no three consecutive suited tiles exist that would form a sequence
+  const suited = concealed.filter(t => t.suit).sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+  const bySuit = new Map<string, number[]>();
+  for (const t of suited) {
+    if (!bySuit.has(t.suit!)) bySuit.set(t.suit!, []);
+    bySuit.get(t.suit!)!.push(t.rank!);
+  }
+  for (const [, ranks] of bySuit) {
+    const sorted = [...ranks].sort((a, b) => a - b);
+    // Check if there are 3 consecutive ranks that aren't all part of the same triplet
+    for (let i = 0; i < sorted.length - 2; i++) {
+      if (sorted[i + 1] === sorted[i] + 1 && sorted[i + 2] === sorted[i] + 2) {
+        // Found consecutive ranks - check if they're all the same count (triplet) or different (sequence)
+        const r1 = sorted[i], r2 = sorted[i + 1], r3 = sorted[i + 2];
+        const c1 = groups.get(`${suited.find(t => t.suit === suited[0]?.suit && t.rank === r1)?.suit}-${r1}`) ?? 0;
+        const c2 = groups.get(`${suited.find(t => t.suit === suited[0]?.suit && t.rank === r2)?.suit}-${r2}`) ?? 0;
+        const c3 = groups.get(`${suited.find(t => t.suit === suited[0]?.suit && t.rank === r3)?.suit}-${r3}`) ?? 0;
+        // If each has exactly 1, they form a sequence, not pungs
+        if (c1 === 1 && c2 === 1 && c3 === 1) return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 function isHalfFlush(tiles: TileDef[]): boolean {
@@ -170,6 +211,73 @@ function isFullFlush(tiles: TileDef[]): boolean {
   const suits = new Set(tiles.filter(t => t.suit).map(t => t.suit));
   const hasHonor = tiles.some(t => t.honorType);
   return suits.size === 1 && !hasHonor;
+}
+
+function isCommonHand(
+  concealed: TileDef[],
+  seatWind: 'east' | 'south' | 'west' | 'north',
+  roundWind: 'east' | 'south' | 'west' | 'north',
+): boolean {
+  // Must be 14 tiles (concealed hand with no melds)
+  if (concealed.length !== 14) return false;
+
+  // All tiles must be suited (no honors)
+  if (concealed.some(t => !t.suit)) return false;
+
+  // Check if pair is a value pair (dragon, seat wind, or round wind)
+  const groups = new Map<string, TileDef[]>();
+  for (const t of concealed) {
+    const key = tileSortKey(t);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(t);
+  }
+
+  let pairCount = 0;
+  let sequenceCount = 0;
+  const valuePairNames = new Set(['haku', 'hatsu', 'chun', seatWind, roundWind]);
+
+  for (const [key, tiles] of groups) {
+    if (tiles.length === 2) {
+      pairCount++;
+      // Check if this pair is a value pair
+      const tile = tiles[0];
+      if (tile.honorType && valuePairNames.has(tile.honorName!)) return false;
+      if (!tile.honorType && valuePairNames.has(tile.suit!)) return false; // shouldn't happen but safe
+    }
+  }
+
+  // Must have exactly one pair
+  if (pairCount !== 1) return false;
+
+  // Check that the hand decomposes as all sequences + one pair
+  // Use a simple check: try to find 4 sequences in the remaining tiles after removing the pair
+  const sorted = [...concealed].sort((a, b) => tileSortKey(a).localeCompare(tileSortKey(b)));
+  return canDecomposeAllSequences(sorted);
+}
+
+function canDecomposeAllSequences(tiles: TileDef[]): boolean {
+  if (tiles.length === 0) return true;
+  if (tiles.length < 3) return false;
+
+  // Try to form a sequence starting with the first tile
+  const first = tiles[0];
+  if (!first.suit) return false;
+
+  // Try sequence: first, first+1, first+2
+  const secondKey = `${first.suit}-${(first.rank ?? 0) + 1}`;
+  const thirdKey = `${first.suit}-${(first.rank ?? 0) + 2}`;
+
+  const secondIdx = tiles.findIndex((t, i) => i > 0 && tileSortKey(t) === secondKey);
+  const thirdIdx = tiles.findIndex((t, i) => i > 0 && tileSortKey(t) === thirdKey);
+
+  if (secondIdx !== -1 && thirdIdx !== -1) {
+    const remaining = tiles.filter((_, i) => i !== 0 && i !== secondIdx && i !== thirdIdx);
+    if (canDecomposeAllSequences(remaining)) return true;
+  }
+
+  // Try triplet (same tile 3 times) - this would NOT be a sequence, so fail
+  // Actually, for common hand, we need ALL sequences. If first tile can't form a sequence, fail.
+  return false;
 }
 
 function isSmallDragons(tiles: TileDef[]): boolean {

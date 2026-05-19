@@ -1,14 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-interface ChatMessage {
-  senderId: string;
-  senderName: string;
-  text: string;
-  timestamp: number;
-}
+import type { ChatMessageData } from '../common/ChatPanel.js';
 
 interface ChatPanelProps {
-  messages: ChatMessage[];
+  messages: ChatMessageData[];
   mySessionId: string;
   onSend: (text: string) => void;
 }
