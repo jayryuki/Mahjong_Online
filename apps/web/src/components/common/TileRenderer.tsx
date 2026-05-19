@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { tileToImageName, getTileImageUrl } from '../../lib/tile-theme.js';
-import { getTheme } from '../../lib/theme.js';
+import { getTheme, ThemeId } from '../../lib/theme.js';
 
 interface TileRendererProps {
   tile: {
@@ -14,11 +14,11 @@ interface TileRendererProps {
   onClick?: () => void;
 }
 
-function useTheme() {
-  const [theme, setTheme] = useState<'light' | 'dark'>(getTheme);
+function useTheme(): ThemeId {
+  const [theme, setTheme] = useState<ThemeId>(getTheme);
   useEffect(() => {
     const observer = new MutationObserver(() => setTheme(getTheme()));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
   }, []);
   return theme;
@@ -29,7 +29,7 @@ export function TileRenderer({ tile, width = 72, height = 96, selected, onClick 
   const imageName = tileToImageName(tile);
   if (!imageName) return null;
 
-  const src = getTileImageUrl(imageName, theme === 'dark');
+  const src = getTileImageUrl(imageName, theme);
 
   return (
     <img

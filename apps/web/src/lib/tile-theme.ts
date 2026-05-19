@@ -1,3 +1,5 @@
+import { ThemeId } from './theme.js';
+
 /** Map a TileDef to the classic SVG filename (no extension). */
 export function tileToImageName(tile: {
   suit?: string;
@@ -17,10 +19,19 @@ export function tileToImageName(tile: {
   return null;
 }
 
-export function getTileImageUrl(imageName: string, dark: boolean = false): string {
+/** Which SVG directory each theme uses */
+const THEME_SVG_DIR: Record<ThemeId, string> = {
+  'light':          'svg',
+  'ivory-jade':     'svg',
+  'paper-crimson':  'svg-crimson',
+  'dark':           'svg-dark',
+  'midnight-ink':   'svg-dark',
+  'ember-jade':     'svg-dark',
+};
+
+export function getTileImageUrl(imageName: string, theme: ThemeId = 'light'): string {
   if (imageName === 'back') return '/tiles/classic/back.png';
-  if (dark && imageName.startsWith('svg/')) {
-    return `/tiles/classic/svg-dark/${imageName.slice(4)}.svg`;
-  }
-  return `/tiles/classic/${imageName}.svg`;
+  const dir = THEME_SVG_DIR[theme] ?? 'svg';
+  const filename = imageName.replace('svg/', '');
+  return `/tiles/classic/${dir}/${filename}.svg`;
 }
