@@ -80,9 +80,9 @@
     --border-subtle: rgba(58, 58, 64, 0.3);
     --rule-subtle: rgba(58, 58, 64, 0.2);
     --focus-ring: 0 0 0 2px rgba(196, 165, 116, 0.3);
-    --tile-face-bg: #2a2825;
-    --tile-face-border: #3a3630;
-    --tile-stroke: #d1d1d6;
+    --tile-face-bg: #1a1a1d;
+    --tile-face-border: #3a3a40;
+    --tile-stroke: #ffffff;
     --tile-back-bg: var(--matte-600);
     --seat-active-ring: var(--warm-accent);
     --danger: #c45a5a;

@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TableLayout } from '../components/table/TableLayout.js';
 import { HandArea } from '../components/table/HandArea.js';
 import { MeldArea } from '../components/table/MeldArea.js';
 import { ActionPrompt } from '../components/actions/ActionPrompt.js';
 import { Button } from '../components/common/Button.js';
 import { ChatPanel, ChatMessageData } from '../components/common/ChatPanel.js';
 import { TileRenderer } from '../components/common/TileRenderer.js';
+import { InfoBar } from '../components/table/InfoBar.js';
+import { CenterRiver } from '../components/table/CenterRiver.js';
+import { SeatPosition } from '../components/table/SeatPosition.js';
+import { WildCardDisplay } from '../components/table/WildCardDisplay.js';
 import { useScale } from '../hooks/useScale.js';
 import { clearRoom } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
@@ -47,6 +50,20 @@ function tileKey(t: TileDef): string {
     return `${suitOrder[t.suit]}${t.rank!.toString().padStart(2, '0')}`;
   }
   return `9${t.honorName ?? 'zzz'}`;
+}
+
+// Apply custom hand ordering; falls back to default sort for tiles not in the order
+function applyOrder(tiles: TileDef[], order: string[] | null): TileDef[] {
+  if (!order) return [...tiles].sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
+  const orderMap = new Map(order.map((id, i) => [id, i]));
+  return [...tiles].sort((a, b) => {
+    const ai = orderMap.get(a.id);
+    const bi = orderMap.get(b.id);
+    if (ai !== undefined && bi !== undefined) return ai - bi;
+    if (ai !== undefined) return -1;
+    if (bi !== undefined) return 1;
+    return tileKey(a).localeCompare(tileKey(b));
+  });
 }
 
 interface SeatDisplay {
@@ -97,6 +114,10 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   // Hand tiles (parsed from server messages)
   const [handTiles, setHandTiles] = useState<TileDef[]>([]);
+  // Custom tile ordering (array of tile IDs, or null for default sort)
+  const [handOrder, setHandOrder] = useState<string[] | null>(null);
+  const handOrderRef = useRef<string[] | null>(null);
+  handOrderRef.current = handOrder;
 
   // Current legal actions
   const [legalActions, setLegalActions] = useState<string[]>([]);
@@ -142,6 +163,13 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   // Leave confirmation
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
+  // Hand row height for tile sizing
+  const [handRowHeight, setHandRowHeight] = useState(0);
+  const handRowRef = useRef<HTMLDivElement>(null);
+
+  // Selected tile index (for Discard button in action row)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   // Listen for state changes
   useEffect(() => {
@@ -205,8 +233,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
     const onHandState = (data: { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }>; handVersion: number; phase?: string; activeSeat?: number; legalActions?: string[]; wildCardTileId?: string | null }) => {
       const tiles = data.tiles.map(parseTileId);
-      tiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
-      setHandTiles(tiles);
+      setHandTiles(applyOrder(tiles, handOrderRef.current));
       setHandVersion(data.handVersion);
       setHandResult(null);
       if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
@@ -240,8 +267,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
     const onDeal = (data: { tiles: string[]; handVersion?: number; wildCardTileId?: string | null }) => {
       const tiles = data.tiles.map(parseTileId);
-      tiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
-      setHandTiles(tiles);
+      setHandTiles(applyOrder(tiles, handOrderRef.current));
       if (data.handVersion !== undefined) setHandVersion(data.handVersion);
       setStatusMessage('Hand dealt! Waiting for your turn...');
       setHandResult(null);
@@ -266,9 +292,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       const tile = parseTileId(data.tileId);
       setDrawnTileId(data.tileId);
       setHandTiles((prev) => {
-        const newTiles = [...prev, tile];
-        newTiles.sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
-        return newTiles;
+        return applyOrder([...prev, tile], handOrderRef.current);
       });
       if (data.handVersion !== undefined) setHandVersion(data.handVersion);
       setStatusMessage('Tile drawn! Choose an action.');
@@ -327,6 +351,18 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       }
     };
   }, [room]);
+
+  // Observe hand row height
+  useEffect(() => {
+    const el = handRowRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (h) setHandRowHeight(h);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Handle actions from ActionPrompt
   const handleAction = useCallback((action: string, chiTileIds?: [string, string]) => {
@@ -421,8 +457,21 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     setDrawnTileId(null);
     setLegalActions([]);
     setIsMyTurn(false);
+    setSelectedIndex(null);
     setStatusMessage('Tile discarded. Waiting...');
   }, [room]);
+
+  // Handle tile reorder (drag-and-drop)
+  const handleReorder = useCallback((newTiles: TileDef[]) => {
+    setHandTiles(newTiles);
+    setHandOrder(newTiles.map(t => t.id));
+  }, []);
+
+  // Handle sort (reset to default order)
+  const handleSort = useCallback(() => {
+    setHandOrder(null);
+    setHandTiles(prev => applyOrder(prev, null));
+  }, []);
 
   // Chat send handler
   const handleChatSend = useCallback((text: string) => {
@@ -447,7 +496,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         isRiichi: false,
         melds: [],
         river: [],
-        score: 25000,
+        score: 300,
       }));
     }
 
@@ -493,7 +542,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         isRiichi: seatData?.isRiichi ?? false,
         melds,
         river: riverEntries,
-        score: seatData?.score ?? 25000,
+        score: seatData?.score ?? 300,
       };
     });
   };
@@ -521,117 +570,214 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     return <TileRenderer tile={tile} width={Math.round(w * scale)} height={Math.round(h * scale)} />;
   };
 
+  // Resolve opponent seats
+  const rightSeat = seatDisplays.find(s => s.seatIndex === (mySeat + 1) % 4);
+  const acrossSeat = seatDisplays.find(s => s.seatIndex === (mySeat + 2) % 4);
+  const leftSeat = seatDisplays.find(s => s.seatIndex === (mySeat + 3) % 4);
+
+  const canDiscard = legalActions.includes('DISCARD_TILE');
+
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-      {/* Exit button */}
-      <button
-        onClick={() => setShowLeaveConfirm(true)}
-        style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          zIndex: 60,
-          background: 'rgba(0,0,0,0.5)',
-          color: '#fff',
-          border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: '8px',
-          padding: '6px 12px',
-          cursor: 'pointer',
-          fontSize: `${1.25 * scale}rem`,
-          fontWeight: 600,
-          fontFamily: "'Inter', sans-serif",
-          backdropFilter: 'blur(4px)',
-        }}
-      >
-        Exit
-      </button>
-      {/* Table area - opponent seats + wild card */}
-      <TableLayout
-        seats={seatDisplays}
-        mySeat={mySeat}
-        activeSeat={roomState?.activeSeat ?? 0}
-        dealerSeat={roomState?.dealerSeat ?? 0}
-        roundWind={roomState?.roundWind ?? 'east'}
-        handNumber={roomState?.handNumber ?? 1}
-        honba={roomState?.honba ?? 0}
-        riichiSticks={0}
-        wallRemaining={roomState?.wallRemaining ?? 0}
-        wildCardTileId={wildCardTileId}
-      />
+      {/* === ZONE 1: Top HUD === */}
+      <div style={{ flexShrink: 0, position: 'relative' }}>
+        <InfoBar roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
+        <button
+          onClick={() => setShowLeaveConfirm(true)}
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 8,
+            zIndex: 60,
+            background: 'rgba(0,0,0,0.5)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            padding: '4px 10px',
+            cursor: 'pointer',
+            fontSize: `${1.125 * scale}rem`,
+            fontWeight: 600,
+            fontFamily: "'Inter', sans-serif",
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          Exit
+        </button>
+      </div>
 
-      {/* Bottom panel: player info + hand + actions */}
+      {/* === ZONE 2: Center board (discard region) === */}
+      <div style={{ flex: '1 1 0%', minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
+        {/* River overlay */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
+          <CenterRiver mySeat={mySeat} seats={seatDisplays} />
+        </div>
+
+        {/* Opponent grid */}
+        <div style={{
+          width: '100%',
+          height: '100%',
+          display: 'grid',
+          gridTemplateRows: 'auto 1fr auto',
+          gridTemplateColumns: 'minmax(0, 0.4fr) 3.2fr minmax(0, 0.4fr)',
+          gridTemplateAreas: `
+            ". top ."
+            "left center right"
+            ". bottom ."
+          `,
+          minHeight: 0,
+          background: 'radial-gradient(ellipse at center, #2d5a3d 0%, #1e3f2a 60%, #152b1e 100%)',
+          padding: '6px',
+          gap: '6px',
+          position: 'relative',
+          zIndex: 1,
+        }}>
+          {/* Across seat (top) */}
+          <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '2px 8px' }}>
+            {acrossSeat && <SeatPosition position="top" seatIndex={acrossSeat.seatIndex} displayName={acrossSeat.displayName} tileCount={acrossSeat.tileCount} isDealer={acrossSeat.isDealer} isActive={acrossSeat.isActive} isRiichi={acrossSeat.isRiichi} score={acrossSeat.score} melds={acrossSeat.melds} />}
+          </div>
+
+          {/* Left seat */}
+          <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
+            {leftSeat && <SeatPosition position="left" seatIndex={leftSeat.seatIndex} displayName={leftSeat.displayName} tileCount={leftSeat.tileCount} isDealer={leftSeat.isDealer} isActive={leftSeat.isActive} isRiichi={leftSeat.isRiichi} score={leftSeat.score} melds={leftSeat.melds} />}
+          </div>
+
+          {/* Center cell */}
+          <div style={{ gridArea: 'center', minHeight: 0 }} />
+
+          {/* Right seat */}
+          <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
+            {rightSeat && <SeatPosition position="right" seatIndex={rightSeat.seatIndex} displayName={rightSeat.displayName} tileCount={rightSeat.tileCount} isDealer={rightSeat.isDealer} isActive={rightSeat.isActive} isRiichi={rightSeat.isRiichi} score={rightSeat.score} melds={rightSeat.melds} />}
+          </div>
+
+          {/* Bottom (my seat - empty, hand is below) */}
+          <div style={{ gridArea: 'bottom' }} />
+        </div>
+
+        {/* Wild card display */}
+        <WildCardDisplay wildCardTileId={wildCardTileId} />
+      </div>
+
+      {/* === ZONE 3: Bottom player panel === */}
       <div style={{
         flexShrink: 0,
         background: 'var(--surface-panel)',
         borderTop: isMyTurn ? '3px solid var(--accent-warm)' : '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.25rem',
-        padding: scale < 0.75 ? '0.25rem 0.25rem' : '0.5rem 2rem',
-        overflow: 'visible',
         ...(isMyTurn && { boxShadow: '0 -4px 24px rgba(184, 92, 58, 0.3)' }),
       }}>
-        {/* Player info row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem', minHeight: '2rem', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-            <span style={{ fontSize: `${1.5 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
+        {/* Row 1: Player/status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0.5rem', flexShrink: 0, gap: '0.5rem', minHeight: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+            <span style={{ fontSize: `${1 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
               {mySeatDisplay ? ['E','S','W','N'][mySeatDisplay.seatIndex] : ''} {mySeatDisplay?.isDealer && 'D'}
             </span>
-            <span style={{ fontSize: `${2 * scale}rem`, fontWeight: 600, color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: `${1.125 * scale}rem`, fontWeight: 600, color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {mySeatDisplay?.displayName}
             </span>
+            {isMyTurn && (
+              <span style={{
+                background: 'var(--accent-warm)',
+                color: '#fff',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                fontWeight: 800,
+                fontSize: `${0.8 * scale}rem`,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                animation: 'turnBannerPulse 2s ease-in-out infinite',
+                flexShrink: 0,
+              }}>
+                Your Turn
+              </span>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-            <span style={{ fontSize: `${1.375 * scale}rem`, color: 'var(--text-muted)', maxWidth: '16ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statusMessage}</span>
-            <span style={{ fontSize: `${2 * scale}rem`, fontWeight: 700, color: 'var(--text-primary)' }}>{mySeatDisplay?.score ?? 25000}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+            <span style={{ fontSize: `${1 * scale}rem`, color: 'var(--text-muted)', maxWidth: '16ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statusMessage}</span>
+            <span style={{ fontSize: `${1.25 * scale}rem`, fontWeight: 700, color: 'var(--text-primary)' }}>{mySeatDisplay?.score ?? 300}</span>
             <ChatPanel messages={chatMessages} mySessionId={mySessionId} onSend={handleChatSend} />
           </div>
         </div>
 
-        {/* My melds */}
+        {/* Row 2: Melds (optional) */}
         {mySeatDisplay && mySeatDisplay.melds.length > 0 && (
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0, minHeight: 0, padding: '1px 0' }}>
             <MeldArea melds={mySeatDisplay.melds} />
           </div>
         )}
 
-        {/* Hand tiles with "Your Turn" banner above */}
-        <div style={{ position: 'relative' }}>
-          {isMyTurn && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              width: '100%',
-            }}>
-              <div style={{
-                background: 'var(--accent-warm)',
-                color: '#fff',
-                padding: '2px 1.5rem',
-                borderRadius: '0 0 8px 8px',
-                fontWeight: 800,
-                fontSize: `${1.25 * scale}rem`,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                boxShadow: '0 2px 12px rgba(184, 92, 58, 0.5)',
-                animation: 'turnBannerSlideIn 300ms ease-out, turnBannerPulse 2s ease-in-out infinite',
-              }}>
-                Your Turn
-              </div>
-            </div>
-          )}
-          <HandArea tiles={handTiles} drawnTileId={drawnTileId} canDiscard={legalActions.includes('DISCARD_TILE')} onDiscard={handleDiscard} wildCardTileId={wildCardTileId} />
+        {/* Row 3: Hand tiles (dedicated, tiles only) */}
+        <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: '8px' }}>
+          <HandArea
+            tiles={handTiles}
+            drawnTileId={drawnTileId}
+            canDiscard={canDiscard}
+            onDiscard={handleDiscard}
+            wildCardTileId={wildCardTileId}
+            onReorder={handleReorder}
+            availableHeight={handRowHeight}
+            selectedIndex={selectedIndex}
+            onSelectionChange={setSelectedIndex}
+          />
         </div>
 
-        {/* Action buttons with discarded tile shown inline for reactions */}
-        {allActions.length > 0 && (() => {
-          const discardTile = reactionDiscardTileId ? parseTileId(reactionDiscardTileId) : null;
-          const isWild = discardTile && wildCardTileId && tileKey(discardTile) === tileKey(parseTileId(wildCardTileId));
-          const chiOpts = chiTileOptions.map(pair => ({
-            tileIds: [...pair],
-            label: pair.map(id => { const t = parseTileId(id); return t.suit ? `${t.rank}` : t.honorName ?? '?'; }).join('-'),
-          }));
-          return <ActionPrompt actions={allActions} onAction={handleAction} discardTile={discardTile} isWild={!!isWild} chiOptions={chiOpts} />;
-        })()}
+        {/* Row 4: Action row (buttons, sort, discard) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.375rem',
+          padding: '2px 0',
+          flexShrink: 0,
+          minHeight: 0,
+          flexWrap: 'wrap',
+        }}>
+          {handOrder !== null && (
+            <button
+              onClick={handleSort}
+              style={{
+                padding: '0.2rem 0.6rem',
+                background: 'var(--surface-panel)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 500,
+                fontSize: `${0.85 * scale}rem`,
+              }}
+            >
+              Sort
+            </button>
+          )}
+          {allActions.length > 0 && (() => {
+            const discardTile = reactionDiscardTileId ? parseTileId(reactionDiscardTileId) : null;
+            const isWild = discardTile && wildCardTileId && tileKey(discardTile) === tileKey(parseTileId(wildCardTileId));
+            const chiOpts = chiTileOptions.map(pair => ({
+              tileIds: [...pair],
+              label: pair.map(id => { const t = parseTileId(id); return t.suit ? `${t.rank}` : t.honorName ?? '?'; }).join('-'),
+            }));
+            return <ActionPrompt actions={allActions} onAction={handleAction} discardTile={discardTile} isWild={!!isWild} chiOptions={chiOpts} />;
+          })()}
+          {canDiscard && selectedIndex !== null && (
+            <button
+              onClick={() => handleDiscard(handTiles[selectedIndex])}
+              style={{
+                padding: '0.25rem 1rem',
+                background: 'var(--accent-warm)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: `${1.125 * scale}rem`,
+                boxShadow: '0 2px 6px rgba(184, 92, 58, 0.4)',
+                animation: 'fadeInUp 200ms ease-out',
+              }}
+            >
+              Discard
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Hand result overlay */}
@@ -666,7 +812,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                   return (
                     <div key={s.seatIndex} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', fontSize: `${2.125 * scale}rem` }}>
                       <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{seat?.displayName ?? `Seat ${s.seatIndex}`}</span>
-                      <span style={{ color: s.points >= 25000 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{s.points}</span>
+                      <span style={{ color: s.points >= 300 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>{s.points}</span>
                     </div>
                   );
                 })}

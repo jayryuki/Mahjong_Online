@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TileRenderer } from '../common/TileRenderer.js';
-
 import { useScale } from '../../hooks/useScale.js';
 import { TileDef, tileSortKey } from '@mahjong/game-core';
 
@@ -19,17 +18,31 @@ function parseTileId(id: string): TileDef {
   return { id, isFlower: false };
 }
 
+/** Minimum tile width before we allow wrapping to more rows */
+const MIN_TILE_W = 28;
+/** Aspect ratio: width / height = 1 / 1.4 */
+const TILE_ASPECT = 1.4;
+
 interface HandAreaProps {
   tiles: TileDef[];
   drawnTileId: string | null;
   canDiscard?: boolean;
   onDiscard?: (tile: TileDef) => void;
   wildCardTileId?: string | null;
+  onReorder?: (newTiles: TileDef[]) => void;
+  availableHeight?: number;
+  selectedIndex?: number | null;
+  onSelectionChange?: (index: number | null) => void;
 }
 
-export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wildCardTileId }: HandAreaProps) {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wildCardTileId, onReorder, availableHeight, selectedIndex: controlledSelectedIndex, onSelectionChange }: HandAreaProps) {
+  const [internalSelectedIndex, setInternalSelectedIndex] = useState<number | null>(null);
+  const selectedIndex = controlledSelectedIndex !== undefined ? controlledSelectedIndex : internalSelectedIndex;
+  const setSelectedIndex = onSelectionChange ?? setInternalSelectedIndex;
+
   const [discardingId, setDiscardingId] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   useEffect(() => { setSelectedIndex(null); }, [tiles]);
 
@@ -55,144 +68,128 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     }, 250);
   };
 
+  // Drag-and-drop handlers
+  const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  }, []);
+
+  const handleDragOver = useCallback((index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropIndex(index);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDropIndex(null);
+  }, []);
+
+  const handleDrop = useCallback((targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    const sourceIndex = dragIndex;
+    setDragIndex(null);
+    setDropIndex(null);
+
+    if (sourceIndex === null || sourceIndex === targetIndex) return;
+    if (!onReorder) return;
+
+    const newTiles = [...tiles];
+    const [moved] = newTiles.splice(sourceIndex, 1);
+    newTiles.splice(targetIndex, 0, moved);
+    onReorder(newTiles);
+  }, [dragIndex, tiles, onReorder]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+    setDropIndex(null);
+  }, []);
+
   const scale = useScale();
-  // Tile sizing: tiles as big as possible, wrapping to 2 rows when single-row tiles would be too small
   const tileCount = tiles.length;
-  const gap = 2;
-  const drawnGap = drawnTileId ? 8 : 0;
+  const gap = scale < 0.75 ? 1 : 2;
   const availableWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
-  const minTileW = 36; // minimum acceptable tile width before we wrap
+  const maxTileW = 90;
 
-  // Calculate how many tiles fit per row at minimum width
-  const tilesPerRow = Math.max(1, Math.floor((availableWidth - drawnGap) / (minTileW + gap)));
-  const rows = Math.ceil(tileCount / tilesPerRow);
-  // Use up to 2 rows; if still too many tiles, allow more
-  const effectiveRows = Math.min(rows, 2);
-  const effectivePerRow = Math.ceil(tileCount / effectiveRows);
+  // --- Width-only tile sizing ---
+  // Fit tiles in as few rows as possible (1 preferred, 2 max)
+  const maxTilesPerRow = Math.max(1, Math.floor((availableWidth + gap) / (MIN_TILE_W + gap)));
+  const rows = tileCount > 0 ? Math.min(Math.ceil(tileCount / maxTilesPerRow), 2) : 1;
+  const perRow = Math.ceil(tileCount / rows);
+  const gapsWidth = Math.max(0, perRow - 1) * gap;
+  const widthBasedW = perRow > 0 ? Math.floor((availableWidth - gapsWidth) / perRow) : maxTileW;
 
-  const gapsWidth = Math.max(0, effectivePerRow - 1) * gap;
-  const maxTileW = 68; // cap tile width on desktop
-  const baseW = tileCount > 0
-    ? Math.min(maxTileW, Math.floor((availableWidth - gapsWidth - drawnGap) / effectivePerRow))
-    : Math.round(60 * scale);
-  const baseH = Math.round(baseW * 1.4);
+  // Width-only: no height-based constraint (hand row is auto-height)
+  const baseW = Math.max(MIN_TILE_W, Math.min(widthBasedW, maxTileW));
+  const baseH = Math.round(baseW * TILE_ASPECT);
 
   const wildSortKey = wildCardTileId ? tileSortKey(parseTileId(wildCardTileId)) : null;
-
-  const renderTileEl = (tile: TileDef, w: number, h: number, selected?: boolean, onClick?: () => void) => {
-    return <TileRenderer tile={tile} width={w} height={h} selected={selected} onClick={onClick} />;
-  };
 
   const renderTile = (tile: TileDef, index: number, isDrawn: boolean) => {
     const isSelected = selectedIndex === index;
     const isDiscarding = discardingId === tile.id;
     const isWild = wildSortKey !== null && tileSortKey(tile) === wildSortKey;
+    const isDragging = dragIndex === index;
+    const isDropTarget = dropIndex === index && dragIndex !== index;
 
-    const tileEl = renderTileEl(tile, baseW, baseH, isSelected, canDiscard ? () => setSelectedIndex(isSelected ? null : index) : undefined);
+    const tileEl = <TileRenderer tile={tile} width={baseW} height={baseH} selected={isSelected} onClick={canDiscard ? () => setSelectedIndex(isSelected ? null : index) : undefined} />;
 
     const wrapperStyle: React.CSSProperties = {
       flex: '1 1 0',
       minWidth: 0,
       maxWidth: baseW,
       transition: 'transform 200ms ease, opacity 200ms ease',
-      cursor: canDiscard ? 'pointer' : 'default',
+      cursor: canDiscard ? 'grab' : 'default',
+      userSelect: 'none',
+      opacity: isDragging ? 0.4 : 1,
       ...(isSelected && { transform: 'translateY(-8px)' }),
       ...(isDiscarding && { transform: 'translateY(-16px) scale(0.9)', opacity: 0.4 }),
       ...(isWild && !isDrawn && { border: '2px solid #fbbf24', borderRadius: '4px', boxShadow: '0 0 8px rgba(251,191,36,0.4)' }),
+      ...(isDropTarget && { borderLeft: '3px solid var(--accent-warm)', marginLeft: -1 }),
     };
 
+    const dragHandlers = onReorder ? {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => handleDragStart(index, e),
+      onDragOver: (e: React.DragEvent) => handleDragOver(index, e),
+      onDragLeave: handleDragLeave,
+      onDrop: (e: React.DragEvent) => handleDrop(index, e),
+      onDragEnd: handleDragEnd,
+    } : {};
+
+    // Drawn tile: glow + slight lift, zero extra row height, no label
     if (isDrawn) {
       return (
         <div key={tile.id} style={{
           ...wrapperStyle,
-          maxWidth: baseW + 6,
-          marginLeft: 6,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '1px',
+          transform: 'translateY(-4px)',
           animation: 'tileDrawIn 400ms ease-out',
-        }}>
-          <div style={{
-            padding: 2,
-            background: isWild
-              ? 'linear-gradient(135deg, #fbbf24, #f59e0b)'
-              : 'linear-gradient(135deg, var(--accent-warm), #d4764e)',
-            borderRadius: '4px',
-            boxShadow: isWild
-              ? '0 0 8px rgba(251,191,36,0.5), 0 1px 4px rgba(0,0,0,0.15)'
-              : '0 0 8px rgba(184, 92, 58, 0.5), 0 1px 4px rgba(0,0,0,0.15)',
-            position: 'relative',
-          }}>
-            {tileEl}
-            <div style={{
-              position: 'absolute',
-              top: -8,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              fontSize: `${Math.max(0.625, 0.75 * scale)}rem`,
-              color: '#fff',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              whiteSpace: 'nowrap',
-              background: isWild ? '#fbbf24' : 'var(--accent-warm)',
-              padding: '1px 4px',
-              borderRadius: '2px',
-              lineHeight: 1.2,
-            }}>
-              {isWild ? 'Wild' : 'Drawn'}
-            </div>
-          </div>
+          borderRadius: '8px',
+          boxShadow: isWild
+            ? '0 0 12px 3px rgba(251,191,36,0.6), 0 0 24px 6px rgba(251,191,36,0.25)'
+            : '0 0 12px 3px rgba(184,92,58,0.6), 0 0 24px 6px rgba(184,92,58,0.25)',
+          ...(isWild && { border: '2px solid #fbbf24' }),
+          ...(!isWild && { border: '2px solid var(--accent-warm)' }),
+        }} {...dragHandlers}>
+          {tileEl}
         </div>
       );
     }
 
-    return <div key={tile.id} style={wrapperStyle}>{tileEl}</div>;
+    return <div key={tile.id} style={wrapperStyle} {...dragHandlers}>{tileEl}</div>;
   };
 
   return (
-    <div style={{
+    <div ref={tileRowRef} style={{
       display: 'flex',
-      flexDirection: 'column',
+      gap,
+      padding: `${gap}px ${gap}px 0`,
+      justifyContent: 'center',
+      alignItems: 'flex-end',
+      flexWrap: 'wrap',
       width: '100%',
     }}>
-      <div ref={tileRowRef} style={{
-        display: 'flex',
-        gap,
-        padding: '2px 2px 0',
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-        flexWrap: 'wrap',
-        width: '100%',
-      }}>
-        {tiles.map((tile, i) => renderTile(tile, i, tile.id === drawnTileId))}
-      </div>
-      {canDiscard && selectedIndex !== null && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          padding: '4px 0 2px',
-        }}>
-          <button
-            onClick={() => handleDiscard(tiles[selectedIndex])}
-            style={{
-              padding: '0.4rem 1.5rem',
-              background: 'var(--accent-warm)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: `${1.5 * scale}rem`,
-              boxShadow: '0 2px 6px rgba(184, 92, 58, 0.4)',
-              animation: 'fadeInUp 200ms ease-out',
-            }}
-          >
-            Discard
-          </button>
-        </div>
-      )}
+      {tiles.map((tile, i) => renderTile(tile, i, tile.id === drawnTileId))}
     </div>
   );
 }

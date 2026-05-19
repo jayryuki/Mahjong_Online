@@ -17,7 +17,10 @@ export function tileToImageName(tile: {
   return null;
 }
 
-export function getTileImageUrl(imageName: string): string {
+export function getTileImageUrl(imageName: string, dark: boolean = false): string {
   if (imageName === 'back') return '/tiles/classic/back.png';
+  if (dark && imageName.startsWith('svg/')) {
+    return `/tiles/classic/svg-dark/${imageName.slice(4)}.svg`;
+  }
   return `/tiles/classic/${imageName}.svg`;
 }
