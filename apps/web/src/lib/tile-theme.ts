@@ -22,11 +22,11 @@ export function tileToImageName(tile: {
 /** Which SVG directory each theme uses */
 const THEME_SVG_DIR: Record<ThemeId, string> = {
   'light':          'svg',
-  'ivory-jade':     'svg',
+  'ivory-jade':     'svg-ivory',
   'paper-crimson':  'svg-crimson',
   'dark':           'svg-dark',
-  'midnight-ink':   'svg-dark',
-  'ember-jade':     'svg-dark',
+  'midnight-ink':   'svg-midnight',
+  'ember-jade':     'svg-ember',
 };
 
 export function getTileImageUrl(imageName: string, theme: ThemeId = 'light'): string {
