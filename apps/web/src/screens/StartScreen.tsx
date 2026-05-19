@@ -2,6 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/common/Button.js';
 import { ThemeToggle } from '../components/common/ThemeToggle.js';
+import { useTheme } from '../hooks/useTheme.js';
+import { ThemeId } from '../lib/theme.js';
+import { getTileImageUrl } from '../lib/tile-theme.js';
+
+const PREVIEW_TILES = [
+  'svg/08-characters-1',
+  'svg/17-circles-1',
+  'svg/26-bamboos-1',
+  'svg/01-white-dragon',
+];
 
 interface RoomInfo {
   roomId: string;
@@ -23,10 +33,13 @@ function randomName(): string {
 
 export function StartScreen() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [joinCode, setJoinCode] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
+  const [hoveredTheme, setHoveredTheme] = useState<ThemeId | null>(null);
+  const previewTheme = hoveredTheme ?? theme;
 
   useEffect(() => {
     fetch('/api/rooms')
@@ -84,6 +97,20 @@ export function StartScreen() {
         A quiet room for a strategic game.
       </p>
 
+      {/* Tile theme preview */}
+      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', margin: '0.25rem 0' }}>
+        {PREVIEW_TILES.map(name => (
+          <img
+            key={name}
+            src={getTileImageUrl(name, previewTheme)}
+            alt=""
+            width={40}
+            height={56}
+            style={{ borderRadius: '4px', objectFit: 'contain', display: 'block' }}
+          />
+        ))}
+      </div>
+
       {/* Your name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', maxWidth: '360px' }}>
         <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', flexShrink: 0 }}>Name</label>
@@ -107,7 +134,7 @@ export function StartScreen() {
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         <Button size="lg" onClick={handleCreateRoom}>Create Room</Button>
-        <ThemeToggle />
+        <ThemeToggle onThemeHover={setHoveredTheme} />
       </div>
 
       {/* Join by code */}

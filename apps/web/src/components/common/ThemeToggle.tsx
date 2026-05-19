@@ -1,33 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../hooks/useTheme.js';
-import { ThemeId, THEMES } from '../../lib/theme.js';
-import { getTileImageUrl } from '../../lib/tile-theme.js';
+import { ThemeId } from '../../lib/theme.js';
 
-/** 4 sample tiles: character, circle, bamboo, honor */
-const PREVIEW_TILES = [
-  'svg/08-characters-1',
-  'svg/17-circles-1',
-  'svg/26-bamboos-1',
-  'svg/01-white-dragon',
-];
+interface ThemeToggleProps {
+  onThemeHover?: (themeId: ThemeId | null) => void;
+}
 
-export function ThemeToggle() {
-  const { theme, set, themes, isDark } = useTheme();
+export function ThemeToggle({ onThemeHover }: ThemeToggleProps) {
+  const { theme, set, themes } = useTheme();
   const [open, setOpen] = useState(false);
-  const [hovered, setHovered] = useState<ThemeId | null>(null);
   const ref = useRef<HTMLDivElement>(null);
-
-  const previewTheme = hovered ?? theme;
   const current = themes.find(t => t.id === theme);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        onThemeHover?.(null);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  }, [open, onThemeHover]);
+
+  const handleHover = (id: ThemeId | null) => {
+    onThemeHover?.(id);
+  };
 
   return (
     <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
@@ -83,9 +82,9 @@ export function ThemeToggle() {
               {themes.filter(t => t.group === group).map(t => (
                 <div
                   key={t.id}
-                  onMouseEnter={() => setHovered(t.id)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => { set(t.id); setOpen(false); setHovered(null); }}
+                  onMouseEnter={() => handleHover(t.id)}
+                  onMouseLeave={() => handleHover(null)}
+                  onClick={() => { set(t.id); setOpen(false); handleHover(null); }}
                   style={{
                     padding: '0.4rem 0.6rem',
                     cursor: 'pointer',
@@ -93,42 +92,17 @@ export function ThemeToggle() {
                     color: 'var(--text-primary)',
                     background: t.id === theme
                       ? 'var(--accent-warm)'
-                      : t.id === hovered
-                        ? 'var(--surface-card)'
-                        : 'transparent',
+                      : 'transparent',
                     transition: 'background 80ms ease',
                   }}
+                  onMouseOver={(e) => { if (t.id !== theme) e.currentTarget.style.background = 'var(--surface-card)'; }}
+                  onMouseOut={(e) => { if (t.id !== theme) e.currentTarget.style.background = 'transparent'; }}
                 >
                   {t.label}
                 </div>
               ))}
             </div>
           ))}
-
-          {/* Tile preview row */}
-          <div style={{
-            display: 'flex',
-            gap: '4px',
-            padding: '6px 8px',
-            justifyContent: 'center',
-            borderTop: '1px solid var(--border-subtle)',
-            background: 'var(--surface-card)',
-          }}>
-            {PREVIEW_TILES.map(name => (
-              <img
-                key={name}
-                src={getTileImageUrl(name, previewTheme)}
-                alt=""
-                width={32}
-                height={44}
-                style={{
-                  borderRadius: '4px',
-                  objectFit: 'contain',
-                  display: 'block',
-                }}
-              />
-            ))}
-          </div>
         </div>
       )}
     </div>
