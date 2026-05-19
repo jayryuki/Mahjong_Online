@@ -124,9 +124,7 @@ export function ThemeToggle() {
                 style={{
                   borderRadius: '4px',
                   objectFit: 'contain',
-                  border: '1px solid var(--tile-face-border)',
-                  background: 'var(--tile-face-bg)',
-                  boxSizing: 'border-box',
+                  display: 'block',
                 }}
               />
             ))}
