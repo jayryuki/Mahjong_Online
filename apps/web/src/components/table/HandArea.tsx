@@ -95,7 +95,10 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
   const tileCount = tiles.length;
   const isMobile = scale < 0.75;
   const gap = isMobile ? 2 : 4;
-  const availableWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
+  const hasDrawn = drawnTileId !== null;
+  const drawnExtraMargin = hasDrawn ? Math.round(gap * 1.5) : 0;
+  const rawWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
+  const availableWidth = rawWidth - drawnExtraMargin;
   const maxTileW = isMobile ? 42 : 68;
   const minTileW = isMobile ? 28 : MIN_TILE_W;
 
