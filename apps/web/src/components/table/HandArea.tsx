@@ -5,7 +5,7 @@ import { TileDef, tileSortKey } from '@mahjong/game-core';
 import { parseTileId } from '../../lib/tile-utils.js';
 
 /** Minimum tile width before we allow wrapping to more rows */
-const MIN_TILE_W = 28;
+const MIN_TILE_W = 36;
 /** Aspect ratio: width / height = 1 / 1.4 */
 const TILE_ASPECT = 1.4;
 
@@ -95,7 +95,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
   const tileCount = tiles.length;
   const gap = scale < 0.75 ? 1 : 2;
   const availableWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
-  const maxTileW = 90;
+  const maxTileW = 68;
 
   // --- Width-only tile sizing ---
   // Fit tiles in as few rows as possible (1 preferred, 2 max)

@@ -14,8 +14,8 @@ function renderSmallTile(tile: TileDef, w: number, h: number) {
 
 export function MeldArea({ melds }: MeldAreaProps) {
   const scale = useScale();
-  const tileW = Math.round(48 * scale);
-  const tileH = Math.round(66 * scale);
+  const tileW = Math.round(63 * scale);
+  const tileH = Math.round(87 * scale);
   return (
     <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
       {melds.map((meld, i) => (
