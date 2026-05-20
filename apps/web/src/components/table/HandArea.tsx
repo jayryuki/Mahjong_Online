@@ -126,9 +126,9 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     const tileEl = <TileRenderer tile={tile} width={baseW} height={baseH} selected={isSelected} onClick={canDiscard ? () => setSelectedIndex(isSelected ? null : index) : undefined} />;
 
     const wrapperStyle: React.CSSProperties = {
-      flex: '1 1 0',
+      flex: `0 0 ${baseW}px`,
+      width: baseW,
       minWidth: 0,
-      maxWidth: baseW,
       boxSizing: 'border-box',
       transition: 'transform 200ms ease, opacity 200ms ease',
       cursor: canDiscard ? 'grab' : 'default',
