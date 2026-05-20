@@ -93,21 +93,23 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
 
   const scale = useScale();
   const tileCount = tiles.length;
-  const gap = scale < 0.75 ? 3 : 4;
+  const isMobile = scale < 0.75;
+  const gap = isMobile ? 2 : 4;
   const drawnGap = drawnTileId ? Math.round(gap * 1.5) : 0;
   const availableWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
-  const maxTileW = 68;
+  const maxTileW = isMobile ? 42 : 68;
+  const minTileW = isMobile ? 28 : MIN_TILE_W;
 
   // --- Width-only tile sizing ---
   // Fit tiles in as few rows as possible (1 preferred, 2 max)
-  const maxTilesPerRow = Math.max(1, Math.floor((availableWidth - drawnGap + gap) / (MIN_TILE_W + gap)));
+  const maxTilesPerRow = Math.max(1, Math.floor((availableWidth - drawnGap + gap) / (minTileW + gap)));
   const rows = tileCount > 0 ? Math.min(Math.ceil(tileCount / maxTilesPerRow), 2) : 1;
   const perRow = Math.ceil(tileCount / rows);
   const gapsWidth = Math.max(0, perRow - 1) * gap;
   const widthBasedW = perRow > 0 ? Math.floor((availableWidth - gapsWidth - drawnGap) / perRow) : maxTileW;
 
   // Width-only: no height-based constraint (hand row is auto-height)
-  const baseW = Math.max(MIN_TILE_W, Math.min(widthBasedW, maxTileW));
+  const baseW = Math.max(minTileW, Math.min(widthBasedW, maxTileW));
   const baseH = Math.round(baseW * TILE_ASPECT);
 
   const wildSortKey = wildCardTileId ? tileSortKey(parseTileId(wildCardTileId)) : null;
