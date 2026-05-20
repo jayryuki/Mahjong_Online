@@ -10,6 +10,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@blackjack/game-core':
+        specifier: file:/Users/john/User_Apps/Blackjack_Online/packages/game-core
+        version: file:../Blackjack_Online/packages/game-core
       '@colyseus/core':
         specifier: ^0.16.0
         version: 0.16.24(@colyseus/schema@3.0.76)(@pm2/io@6.1.0)
@@ -195,6 +198,9 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@blackjack/game-core@file:../Blackjack_Online/packages/game-core':
+    resolution: {directory: ../Blackjack_Online/packages/game-core, type: directory}
 
   '@colyseus/clock@1.0.1':
     resolution: {integrity: sha512-HLovmkerzZ7aEckKuHFnql+sXCChi37WRc88duWxufiH5wVMNomBjlqQYVxaORgA+4vLIRd0/jabu6DAbkSfaA==}
@@ -1842,6 +1848,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@blackjack/game-core@file:../Blackjack_Online/packages/game-core': {}
 
   '@colyseus/clock@1.0.1': {}
 

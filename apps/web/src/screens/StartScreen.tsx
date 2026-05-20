@@ -42,7 +42,7 @@ export function StartScreen() {
   const previewTheme = hoveredTheme ?? theme;
 
   useEffect(() => {
-    fetch('/api/rooms')
+    fetch('/api/rooms?game=mahjong')
       .then(res => res.ok ? res.json() : [])
       .then(data => setRooms(data))
       .catch(() => {});
@@ -56,7 +56,7 @@ export function StartScreen() {
       const res = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: name, preset: 'hong-kong' }),
+        body: JSON.stringify({ displayName: name, preset: 'hong-kong', game: 'mahjong' }),
       });
       const data = await res.json();
       navigate(`/lobby/${data.roomCode}?roomId=${data.roomId}&name=${encodeURIComponent(name)}`);
@@ -75,6 +75,10 @@ export function StartScreen() {
         return;
       }
       const data = await res.json();
+      if (data.game !== 'mahjong') {
+        setError('That room is not a mahjong game');
+        return;
+      }
       navigate(`/lobby/${joinCode.toUpperCase()}?roomId=${data.roomId}&name=${encodeURIComponent(name)}`);
     } catch {
       setError('Failed to connect');

@@ -1,8 +1,13 @@
 const CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'.split('');
 const CODE_LENGTH = 6;
 
+interface RoomEntry {
+  roomId: string;
+  game: string;
+}
+
 export class RoomCodeService {
-  private codeToRoomId = new Map<string, string>();
+  private codeToRoom = new Map<string, RoomEntry>();
 
   generateCode(): string {
     let code: string;
@@ -11,23 +16,27 @@ export class RoomCodeService {
       for (let i = 0; i < CODE_LENGTH; i++) {
         code += CHARSET[Math.floor(Math.random() * CHARSET.length)];
       }
-    } while (this.codeToRoomId.has(code));
+    } while (this.codeToRoom.has(code));
     return code;
   }
 
-  register(code: string, roomId: string): void {
-    this.codeToRoomId.set(code.toUpperCase(), roomId);
+  register(code: string, roomId: string, game: string): void {
+    this.codeToRoom.set(code.toUpperCase(), { roomId, game });
   }
 
   getRoomId(code: string): string | undefined {
-    return this.codeToRoomId.get(code.toUpperCase());
+    return this.codeToRoom.get(code.toUpperCase())?.roomId;
+  }
+
+  getGame(code: string): string | undefined {
+    return this.codeToRoom.get(code.toUpperCase())?.game;
   }
 
   remove(code: string): void {
-    this.codeToRoomId.delete(code.toUpperCase());
+    this.codeToRoom.delete(code.toUpperCase());
   }
 
-  getAll(): Map<string, string> {
-    return this.codeToRoomId;
+  getAll(): Map<string, RoomEntry> {
+    return this.codeToRoom;
   }
 }

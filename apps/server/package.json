@@ -13,6 +13,7 @@
     "@colyseus/schema": "^3.0.0",
     "@colyseus/ws-transport": "^0.16.0",
     "@mahjong/game-core": "workspace:*",
+    "@blackjack/game-core": "file:/Users/john/User_Apps/Blackjack_Online/packages/game-core",
     "express": "^4.21.0"
   },
   "devDependencies": {

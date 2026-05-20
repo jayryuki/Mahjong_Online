@@ -19,6 +19,10 @@ export function JoinRoomScreen() {
         return;
       }
       const roomData = await res.json();
+      if (roomData.game !== 'mahjong') {
+        setError('That room is not a mahjong game');
+        return;
+      }
       navigate(`/lobby/${roomCode.toUpperCase()}?roomId=${roomData.roomId}&name=${encodeURIComponent(displayName)}`);
     } catch {
       setError('Failed to connect');
