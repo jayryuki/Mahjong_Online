@@ -2,6 +2,8 @@ import { Server, matchMaker } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { createServer } from 'http';
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { MahjongRoom } from './rooms/MahjongRoom.js';
 import { RoomCodeService } from './services/RoomCodeService.js';
 
@@ -10,6 +12,11 @@ const getLocalRoomById = (matchMaker as any).getLocalRoomById.bind(matchMaker) a
 
 const app = express();
 app.use(express.json());
+
+// Serve the frontend build
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const webDist = path.resolve(__dirname, '../../web/dist');
+app.use(express.static(webDist));
 
 const server = createServer(app);
 const transport = new WebSocketTransport({ server });
@@ -98,6 +105,11 @@ app.get('/api/rooms/:code', (req, res) => {
   } else {
     res.status(404).json({ error: 'Room not found' });
   }
+});
+
+// SPA catch-all: serve index.html for all non-API routes (React Router)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(webDist, 'index.html'));
 });
 
 const PORT: number = parseInt(process.env.PORT || '2500', 10);
