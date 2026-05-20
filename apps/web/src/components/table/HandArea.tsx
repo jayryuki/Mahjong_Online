@@ -136,7 +136,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       opacity: isDragging ? 0.4 : 1,
       ...(isSelected && { transform: 'translateY(-8px)' }),
       ...(isDiscarding && { transform: 'translateY(-16px) scale(0.9)', opacity: 0.4 }),
-      ...(isWild && !isDrawn && { border: '2px solid #fbbf24', borderRadius: '4px', boxShadow: '0 0 8px rgba(251,191,36,0.4)' }),
+      ...(isWild && !isDrawn && { borderRadius: '4px', boxShadow: 'inset 0 0 0 2px #fbbf24, 0 0 8px rgba(251,191,36,0.4)' }),
       ...(isDropTarget && { borderLeft: '3px solid var(--accent-warm)', marginLeft: -1 }),
     };
 
@@ -151,6 +151,10 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
 
     // Drawn tile: glow + slight lift, zero extra row height, no label
     if (isDrawn) {
+      const borderColor = isWild ? '#fbbf24' : 'var(--accent-warm)';
+      const glowColor = isWild
+        ? '0 0 12px 3px rgba(251,191,36,0.6), 0 0 24px 6px rgba(251,191,36,0.25)'
+        : '0 0 12px 3px rgba(184,92,58,0.6), 0 0 24px 6px rgba(184,92,58,0.25)';
       return (
         <div key={tile.id} style={{
           ...wrapperStyle,
@@ -158,11 +162,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
           animation: 'tileDrawIn 400ms ease-out',
           borderRadius: '8px',
           marginLeft: Math.round(gap * 1.5),
-          boxShadow: isWild
-            ? '0 0 12px 3px rgba(251,191,36,0.6), 0 0 24px 6px rgba(251,191,36,0.25)'
-            : '0 0 12px 3px rgba(184,92,58,0.6), 0 0 24px 6px rgba(184,92,58,0.25)',
-          ...(isWild && { border: '2px solid #fbbf24' }),
-          ...(!isWild && { border: '2px solid var(--accent-warm)' }),
+          boxShadow: `inset 0 0 0 2px ${borderColor}, ${glowColor}`,
         }} {...dragHandlers}>
           {tileEl}
         </div>
