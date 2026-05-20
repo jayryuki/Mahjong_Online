@@ -35,7 +35,7 @@ function computeLayouts(tableW: number, tableH: number) {
   const gap = 8;
 
   const centerW = tableW * 0.6;
-  const centerH = tableH * 0.6;
+  const centerH = tableH * 0.72;
   const quadW = (centerW - gap) / 2;
   const quadH = (centerH - gap) / 2;
 

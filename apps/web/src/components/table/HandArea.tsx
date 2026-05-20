@@ -93,17 +93,18 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
 
   const scale = useScale();
   const tileCount = tiles.length;
-  const gap = scale < 0.75 ? 1 : 2;
+  const gap = scale < 0.75 ? 3 : 4;
+  const drawnGap = drawnTileId ? Math.round(gap * 1.5) : 0;
   const availableWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
   const maxTileW = 68;
 
   // --- Width-only tile sizing ---
   // Fit tiles in as few rows as possible (1 preferred, 2 max)
-  const maxTilesPerRow = Math.max(1, Math.floor((availableWidth + gap) / (MIN_TILE_W + gap)));
+  const maxTilesPerRow = Math.max(1, Math.floor((availableWidth - drawnGap + gap) / (MIN_TILE_W + gap)));
   const rows = tileCount > 0 ? Math.min(Math.ceil(tileCount / maxTilesPerRow), 2) : 1;
   const perRow = Math.ceil(tileCount / rows);
   const gapsWidth = Math.max(0, perRow - 1) * gap;
-  const widthBasedW = perRow > 0 ? Math.floor((availableWidth - gapsWidth) / perRow) : maxTileW;
+  const widthBasedW = perRow > 0 ? Math.floor((availableWidth - gapsWidth - drawnGap) / perRow) : maxTileW;
 
   // Width-only: no height-based constraint (hand row is auto-height)
   const baseW = Math.max(MIN_TILE_W, Math.min(widthBasedW, maxTileW));
@@ -124,6 +125,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       flex: '1 1 0',
       minWidth: 0,
       maxWidth: baseW,
+      boxSizing: 'border-box',
       transition: 'transform 200ms ease, opacity 200ms ease',
       cursor: canDiscard ? 'grab' : 'default',
       userSelect: 'none',
@@ -151,6 +153,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
           transform: 'translateY(-4px)',
           animation: 'tileDrawIn 400ms ease-out',
           borderRadius: '8px',
+          marginLeft: Math.round(gap * 1.5),
           boxShadow: isWild
             ? '0 0 12px 3px rgba(251,191,36,0.6), 0 0 24px 6px rgba(251,191,36,0.25)'
             : '0 0 12px 3px rgba(184,92,58,0.6), 0 0 24px 6px rgba(184,92,58,0.25)',
