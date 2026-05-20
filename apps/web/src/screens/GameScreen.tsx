@@ -726,7 +726,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         )}
 
         {/* Row 3: Hand tiles (dedicated, tiles only) */}
-        <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: '8px' }}>
+        <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: '8px', paddingBottom: '8px' }}>
           <HandArea
             tiles={handTiles}
             drawnTileId={drawnTileId}
