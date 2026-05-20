@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const colyseusTarget = 'http://localhost:2500';
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -8,8 +10,8 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: ['mahjong.jayryuki.com'],
     proxy: {
-      '/api': 'http://localhost:2500',
-      '/ws': { target: 'ws://localhost:2500', ws: true },
+      '/api': colyseusTarget,
+      '/matchmake': colyseusTarget,
     },
   },
 });

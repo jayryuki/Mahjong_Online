@@ -14,6 +14,7 @@ export class PlayerSchema extends Schema {
   @type('boolean') isConnected: boolean = false;
   @type('boolean') isReady: boolean = false;
   @type('boolean') isHost: boolean = false;
+  @type('boolean') isSpectator: boolean = false;
 }
 
 export class SeatRoundSchema extends Schema {

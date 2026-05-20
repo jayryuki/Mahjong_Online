@@ -21,7 +21,10 @@ const SEAT_WIND_LABELS = ['E', 'S', 'W', 'N'];
 const BASE_MELD_TILE_W = 34;
 const BASE_MELD_TILE_H = 47;
 
-function renderMeldTile(tile: TileDef, w: number, h: number) {
+function renderMeldTile(tile: TileDef, w: number, h: number, concealed: boolean) {
+  if (concealed) {
+    return <div style={{ width: w, height: h, background: '#4a6741', borderRadius: '3px', border: '1px solid rgba(0,0,0,0.2)' }} />;
+  }
   return <TileRenderer tile={tile} width={w} height={h} />;
 }
 
@@ -100,6 +103,7 @@ export function SeatPosition({ position, seatIndex, displayName, tileCount, isDe
             const tileIds: string[] = meld.tiles?.map((t: any) => typeof t === 'string' ? t : t.id) ?? [];
             if (tileIds.length === 0) return null;
             const meldLabel = meld.type === 'chi' ? 'Chi' : meld.type === 'pon' ? 'Pon' : meld.type.startsWith('kan') ? 'Kan' : '';
+            const concealed = meld.isConcealed;
             return (
               <div key={i} style={{
                 display: 'flex',
@@ -112,9 +116,14 @@ export function SeatPosition({ position, seatIndex, displayName, tileCount, isDe
                 border: '1px solid rgba(255,255,255,0.1)',
               }}>
                 <div style={{ display: 'flex', gap: '1px' }}>
-                  {tileIds.map((tid: string, j: number) => (
-                    <div key={j}>{renderMeldTile(parseTileId(tid), meldTileW, meldTileH)}</div>
-                  ))}
+                  {concealed
+                    ? Array.from({ length: tileIds.length }, (_, j) => (
+                        <div key={j}>{renderMeldTile({} as TileDef, meldTileW, meldTileH, true)}</div>
+                      ))
+                    : tileIds.map((tid: string, j: number) => (
+                        <div key={j}>{renderMeldTile(parseTileId(tid), meldTileW, meldTileH, false)}</div>
+                      ))
+                  }
                 </div>
                 {meldLabel && (
                   <span style={{ fontSize: `${0.875 * scale}rem`, color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>

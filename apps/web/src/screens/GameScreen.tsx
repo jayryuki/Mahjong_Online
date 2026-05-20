@@ -10,6 +10,7 @@ import { InfoBar } from '../components/table/InfoBar.js';
 import { CenterRiver } from '../components/table/CenterRiver.js';
 import { SeatPosition } from '../components/table/SeatPosition.js';
 import { WildCardDisplay } from '../components/table/WildCardDisplay.js';
+import { ThemeToggle } from '../components/common/ThemeToggle.js';
 import { useScale } from '../hooks/useScale.js';
 import { clearRoom } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
@@ -133,6 +134,14 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   // Selected tile index (for Discard button in action row)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
+  // Spectator state
+  const [isSpectator, setIsSpectator] = useState(false);
+  const [spectatorAllHands, setSpectatorAllHands] = useState<Record<number, { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }> }> | null>(null);
+
+  // Blind kan reaction
+  const [blindKanReactionOptions, setBlindKanReactionOptions] = useState<string[]>([]);
+  const [blindKanTileId, setBlindKanTileId] = useState<string | null>(null);
+
   // Listen for state changes
   useEffect(() => {
     if (!room) return;
@@ -151,7 +160,11 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       }
       seatMapRef.current = newSeatMap;
 
-      // Find my seat
+      // Find my seat and spectator status
+      const myPlayer = players.find((p: PlayerData) => p.playerId === mySessionId);
+      if (myPlayer && (myPlayer as any).isSpectator) {
+        setIsSpectator(true);
+      }
       const mySeatIdx = newSeatMap.get(mySessionId);
       if (mySeatIdx !== undefined) {
         setMySeat(mySeatIdx);
@@ -206,7 +219,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         if (myTurn) {
           setIsMyTurn(true);
           playTurnSound();
-        } else if (data.phase !== 'REACTION_WINDOW') {
+        } else if (data.phase !== 'REACTION_WINDOW' && data.phase !== 'BLIND_KAN_REACTION') {
           setIsMyTurn(false);
         }
         if (data.phase === 'TURN_DRAW' && data.activeSeat === mySeatRef.current) {
@@ -218,6 +231,9 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         } else if (data.phase === 'REACTION_WINDOW') {
           setReactionOptions(data.legalActions);
           setStatusMessage('A tile was discarded. You can react!');
+        } else if (data.phase === 'BLIND_KAN_REACTION') {
+          setBlindKanReactionOptions(data.legalActions);
+          setStatusMessage('A blind kan was declared. You may be able to win!');
         } else {
           setStatusMessage(`Seat ${data.activeSeat ?? '?'} is playing...`);
         }
@@ -284,9 +300,14 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setHandResult(data);
       setLegalActions([]);
       setReactionOptions([]);
+      setBlindKanReactionOptions([]);
       setDrawnTileId(null);
       if (data.endReason === 'exhaustive-draw') {
         setStatusMessage('Exhaustive draw! No one wins this hand.');
+      } else if (data.blindKanRon) {
+        setStatusMessage(`Hand over! Ron by seat ${data.winner} off blind kan!`);
+      } else if (data.winType === 'ron') {
+        setStatusMessage(`Hand over! Ron by seat ${data.winner}!`);
       } else {
         setStatusMessage(`Hand over! Tsumo by seat ${data.winner}!`);
       }
@@ -295,6 +316,20 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     const onMatchEnd = (data: { finalScores: Array<{ seatIndex: number; points: number }> }) => {
       setStatusMessage('Match over!');
       setHandResult({ endReason: 'match-end', finalScores: data.finalScores });
+    };
+
+    const onBlindKanReactionOptions = (data: { kanSeat: number; kanTileId: string; actions: string[] }) => {
+      setBlindKanReactionOptions(data.actions);
+      setBlindKanTileId(data.kanTileId);
+      setStatusMessage(`Seat ${data.kanSeat} declared a blind kan. You can win off it!`);
+      playReactionSound();
+    };
+
+    const onSpectatorHandState = (data: { allHands: Record<number, { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }> }>; phase: string; activeSeat: number; wildCardTileId?: string | null }) => {
+      setSpectatorAllHands(data.allHands);
+      setPhase(data.phase);
+      if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
+      setStatusMessage('Spectating...');
     };
 
     unsubs.push(room.onMessage('hand-state', onHandState));
@@ -306,6 +341,15 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     unsubs.push(room.onMessage('meld-applied', onMeldApplied));
     unsubs.push(room.onMessage('hand-result', onHandResult));
     unsubs.push(room.onMessage('match-end', onMatchEnd));
+    unsubs.push(room.onMessage('blind-kan-reaction-options', onBlindKanReactionOptions));
+    unsubs.push(room.onMessage('spectator-hand-state', onSpectatorHandState));
+    unsubs.push(room.onMessage('seat-joined', (data: { seatIndex: number }) => {
+      setIsSpectator(false);
+      setSpectatorAllHands(null);
+      setMySeat(data.seatIndex);
+      mySeatRef.current = data.seatIndex;
+      room.send('request-hand');
+    }));
 
     return () => {
       for (const unsub of unsubs) {
@@ -342,6 +386,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         room.send('pass-reaction');
         setReactionOptions([]);
         setReactionDiscardTileId(null);
+        setBlindKanReactionOptions([]);
+        setBlindKanTileId(null);
         setStatusMessage('Passed.');
         break;
       case 'CALL_PON':
@@ -408,6 +454,12 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         }
         break;
       }
+      case 'DECLARE_WIN_RON_BLIND_KAN':
+        room.send('declare-win-ron-blind-kan');
+        setBlindKanReactionOptions([]);
+        setBlindKanTileId(null);
+        setStatusMessage('Declaring Ron off Blind Kan!');
+        break;
     }
   }, [room, chiTileOptions, handTiles, roomState]);
 
@@ -492,7 +544,13 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
       const meldTypes: string[] = seatData?.meldTypes ? seatData.meldTypes.split(',').filter(Boolean) : [];
       for (let j = 0; j < melds.length; j++) {
-        if (meldTypes[j]) melds[j].type = meldTypes[j];
+        if (meldTypes[j]) {
+          melds[j].type = meldTypes[j];
+          // kan-closed melds are concealed — hide tile identity from non-owners
+          if (meldTypes[j] === 'kan-closed') {
+            melds[j].isConcealed = true;
+          }
+        }
       }
 
       return {
@@ -510,7 +568,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   };
 
   const seatDisplays = buildSeatDisplays();
-  const allActions = [...legalActions, ...reactionOptions];
+  const allActions = [...legalActions, ...reactionOptions, ...blindKanReactionOptions];
 
   // My seat display for the bottom panel
   const mySeatDisplay = seatDisplays.find(s => s.seatIndex === mySeat);
@@ -544,27 +602,26 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       {/* === ZONE 1: Top HUD === */}
       <div style={{ flexShrink: 0, position: 'relative' }}>
         <InfoBar roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
-        <button
-          onClick={() => setShowLeaveConfirm(true)}
-          style={{
-            position: 'absolute',
-            top: 4,
-            right: 8,
-            zIndex: 60,
-            background: 'rgba(0,0,0,0.5)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '8px',
-            padding: '4px 10px',
-            cursor: 'pointer',
-            fontSize: `${1.125 * scale}rem`,
-            fontWeight: 600,
-            fontFamily: "'Inter', sans-serif",
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          Exit
-        </button>
+        <div style={{ position: 'absolute', top: 4, right: 8, zIndex: 60, display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <ThemeToggle />
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            style={{
+              background: 'rgba(0,0,0,0.5)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              padding: '4px 10px',
+              cursor: 'pointer',
+              fontSize: `${1.125 * scale}rem`,
+              fontWeight: 600,
+              fontFamily: "'Inter', sans-serif",
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            Exit
+          </button>
+        </div>
       </div>
 
       {/* === ZONE 2: Center board (discard region) === */}
@@ -742,6 +799,99 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         </div>
       </div>
 
+      {/* Spectator view overlay */}
+      {isSpectator && spectatorAllHands && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          zIndex: 50,
+          padding: `${2 * scale}rem ${1 * scale}rem`,
+          overflow: 'auto',
+        }}>
+          <div style={{ color: '#fff', fontSize: `${1.5 * scale}rem`, fontWeight: 700, marginBottom: `${1 * scale}rem` }}>
+            Spectating
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: `${1 * scale}rem`,
+            width: '100%',
+            maxWidth: '900px',
+          }}>
+            {[0, 1, 2, 3].map((seatIdx) => {
+              const hand = spectatorAllHands[seatIdx];
+              if (!hand) return null;
+              const tiles = hand.tiles.map(parseTileId);
+              const playerData: any = roomState?.players ? Array.from(roomState.players.values()).find((p: any) => p.seatIndex === seatIdx) : null;
+              const name = playerData?.displayName ?? `Seat ${seatIdx}`;
+              return (
+                <div key={seatIdx} style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  borderRadius: '8px',
+                  padding: `${0.75 * scale}rem`,
+                }}>
+                  <div style={{ color: '#fff', fontSize: `${1 * scale}rem`, fontWeight: 600, marginBottom: `${0.5 * scale}rem` }}>
+                    {name} ({['East', 'South', 'West', 'North'][seatIdx]})
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+                    {tiles.map((tile) => (
+                      <TileRenderer key={tile.id} tile={tile} width={Math.round(36 * scale)} height={Math.round(50 * scale)} />
+                    ))}
+                    {hand.melds.map((meld, mi) => (
+                      <div key={mi} style={{ display: 'flex', gap: '1px', marginLeft: `${0.5 * scale}rem` }}>
+                        {meld.tileIds.map((tid) => {
+                          const t = parseTileId(tid);
+                          return meld.isConcealed
+                            ? <div key={tid} style={{ width: Math.round(36 * scale), height: Math.round(50 * scale), background: '#4a6741', borderRadius: '3px' }} />
+                            : <TileRenderer key={tid} tile={t} width={Math.round(36 * scale)} height={Math.round(50 * scale)} />;
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Join seat button for spectators */}
+          {(phase === 'HAND_END' || phase === 'ROUND_END' || phase === 'MATCH_END') && (
+            <div style={{ marginTop: `${1 * scale}rem` }}>
+              <div style={{ color: '#ccc', fontSize: `${0.9 * scale}rem`, marginBottom: `${0.5 * scale}rem` }}>
+                Open seats available:
+              </div>
+              <div style={{ display: 'flex', gap: `${0.5 * scale}rem` }}>
+                {[0, 1, 2, 3].map((seatIdx) => {
+                  const seatPlayer: any = roomState?.players ? Array.from(roomState.players.values()).find((p: any) => p.seatIndex === seatIdx && !p.isSpectator) : null;
+                  const isOccupied = seatPlayer && seatPlayer.isConnected;
+                  if (isOccupied) return null;
+                  return (
+                    <button
+                      key={seatIdx}
+                      onClick={() => room?.send('spectator-join-seat', { seatIndex: seatIdx })}
+                      style={{
+                        padding: `${0.5 * scale}rem ${1 * scale}rem`,
+                        background: 'var(--accent-warm)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: `${0.9 * scale}rem`,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Seat {seatIdx} ({['East', 'South', 'West', 'North'][seatIdx]})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Hand result overlay */}
       {handResult && (
         <div style={{
@@ -787,7 +937,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             ) : (
               <>
                 <h2 style={{ color: 'var(--accent-warm)', margin: '0 0 0.75rem 0', fontSize: `${3.5 * scale}rem` }}>
-                  Tsumo!
+                  {handResult.blindKanRon ? 'Ron (Blind Kan)!' : handResult.winType === 'ron' ? 'Ron!' : 'Tsumo!'}
                 </h2>
                 <p style={{ color: 'var(--text-primary)', fontSize: `${2.125 * scale}rem`, margin: '0 0 0.5rem 0' }}>
                   {seatDisplays.find(s => s.seatIndex === handResult.winner)?.displayName ?? `Seat ${handResult.winner}`} wins with {handResult.fan} fan{handResult.hasGong ? ' + GONG (2x)' : ''}

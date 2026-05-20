@@ -30,6 +30,7 @@ export type GamePhase =
   | { type: 'TURN_DRAW'; activeSeat: number; wallRemaining: number }
   | { type: 'TURN_DECISION'; activeSeat: number; legalActions: ActionType[] }
   | { type: 'REACTION_WINDOW'; discardSeat: number; discardTile: TileDef; pendingSeats: number[] }
+  | { type: 'BLIND_KAN_REACTION'; kanSeat: number; kanTile: TileDef; pendingSeats: number[] }
   | { type: 'RESOLUTION'; winner?: number; winType?: 'ron' | 'tsumo' }
   | { type: 'HAND_END'; endReason: 'win' | 'exhaustive-draw'; result: HandResult | null }
   | { type: 'ROUND_END'; summary: RoundSummary }

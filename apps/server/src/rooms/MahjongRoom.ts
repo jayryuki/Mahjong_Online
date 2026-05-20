@@ -18,6 +18,7 @@ import {
   calculateHKScore,
   settleHand,
   isTenpai,
+  canRonBlindKan,
 } from '@mahjong/game-core';
 import type {
   TileDef,
@@ -84,6 +85,17 @@ export class MahjongRoom extends Room<GameState> {
   // Session <-> seat mapping
   private sessionToSeat: Map<string, number> = new Map();
   private seatToSession: Map<number, string> = new Map();
+
+  // Spectator tracking
+  private spectatorSessions: Set<string> = new Set();
+
+  // Blind kan reaction state
+  private blindKanReaction: {
+    kanSeat: number;
+    kanTile: TileDef;
+    eligibleSeats: number[];
+    responses: Record<number, { type: 'pass' | 'ron' } | null>;
+  } | null = null;
 
   onCreate(options: { preset: string; hostPlayerId: string; roomCode: string }) {
     this.setState(new GameState());
@@ -160,12 +172,20 @@ export class MahjongRoom extends Room<GameState> {
       this.handleDeclareWinTsumo(client);
     });
 
+    this.onMessage('declare-win-ron-blind-kan', (client) => {
+      this.handleDeclareWinRonBlindKan(client);
+    });
+
     this.onMessage('request-hand', (client) => {
       this.handleRequestHand(client);
     });
 
     this.onMessage('next-hand', () => {
       this.handleNextHand();
+    });
+
+    this.onMessage('spectator-join-seat', (client, data: { seatIndex: number }) => {
+      this.handleSpectatorJoinSeat(client, data);
     });
   }
 
@@ -174,10 +194,18 @@ export class MahjongRoom extends Room<GameState> {
     player.playerId = client.sessionId;
     player.displayName = options.displayName || 'Player';
     player.isConnected = true;
-    // First player to join is the host
     player.isHost = this.state.players.size === 0;
 
-    // Auto-assign the next available seat
+    // If game is already in progress, join as spectator
+    if (this.state.status === 'in-progress') {
+      player.isSpectator = true;
+      player.seatIndex = 255; // no seat
+      this.spectatorSessions.add(client.sessionId);
+      this.state.players.set(client.sessionId, player);
+      return;
+    }
+
+    // Lobby: auto-assign the next available seat
     const occupiedSeats = new Set(Array.from(this.sessionToSeat.values()));
     for (let i = 0; i < 4; i++) {
       if (!occupiedSeats.has(i)) {
@@ -202,6 +230,7 @@ export class MahjongRoom extends Room<GameState> {
       this.seatToSession.delete(seat);
     }
     this.sessionToSeat.delete(client.sessionId);
+    this.spectatorSessions.delete(client.sessionId);
   }
 
   onDispose() {
@@ -226,9 +255,34 @@ export class MahjongRoom extends Room<GameState> {
   }
 
   private handleRequestHand(client: Client) {
+    if (this.gamePhase.type === 'LOBBY' || this.gamePhase.type === 'DEALING') return;
+
+    // Spectators get to see ALL hands
+    if (this.spectatorSessions.has(client.sessionId)) {
+      const allHands: Record<number, { tiles: string[]; melds: Array<{ type: string; tileIds: string[]; isConcealed: boolean }> }> = {};
+      for (let i = 0; i < 4; i++) {
+        const concealed = this.concealedTiles.get(i) ?? [];
+        const melds = this.seatMelds.get(i) ?? [];
+        allHands[i] = {
+          tiles: concealed.map((t) => t.id),
+          melds: melds.map((m) => ({
+            type: m.type,
+            tileIds: m.tiles.map((t) => t.id),
+            isConcealed: m.isConcealed,
+          })),
+        };
+      }
+      client.send('spectator-hand-state', {
+        allHands,
+        phase: this.gamePhase.type,
+        activeSeat: this.activeSeat,
+        wildCardTileId: this.wildCardTile?.id ?? null,
+      });
+      return;
+    }
+
     const seat = this.sessionToSeat.get(client.sessionId);
     if (seat === undefined) return;
-    if (this.gamePhase.type === 'LOBBY' || this.gamePhase.type === 'DEALING') return;
 
     const concealed = this.concealedTiles.get(seat) ?? [];
     const melds = this.seatMelds.get(seat) ?? [];
@@ -256,6 +310,11 @@ export class MahjongRoom extends Room<GameState> {
         if (this.reactionState.discardSeat === (seat + 3) % 4 && discardedTile.suit) {
           legalActions.push('CALL_CHI');
         }
+      }
+    } else if (this.gamePhase.type === 'BLIND_KAN_REACTION' && this.blindKanReaction) {
+      // Re-derive this seat's blind kan reaction options
+      if (this.blindKanReaction.eligibleSeats.includes(seat) && this.blindKanReaction.responses[seat] === null) {
+        legalActions = ['PASS_REACTION', 'DECLARE_WIN_RON_BLIND_KAN'];
       }
     }
 
@@ -985,9 +1044,21 @@ export class MahjongRoom extends Room<GameState> {
   // ---------------------------------------------------------------------------
 
   private handlePassReaction(client: Client) {
-    if (this.gamePhase.type !== 'REACTION_WINDOW' || !this.reactionState) return;
     const seat = this.getSeatForClient(client);
     if (seat === null) return;
+
+    // Handle blind kan reaction pass
+    if (this.gamePhase.type === 'BLIND_KAN_REACTION' && this.blindKanReaction) {
+      if (this.blindKanReaction.eligibleSeats.includes(seat) && this.blindKanReaction.responses[seat] === null) {
+        this.blindKanReaction.responses[seat] = { type: 'pass' };
+        const seatSchema = this.state.seats.get(String(seat));
+        if (seatSchema) seatSchema.hasPassedReaction = true;
+        this.checkBlindKanReactionResolution();
+      }
+      return;
+    }
+
+    if (this.gamePhase.type !== 'REACTION_WINDOW' || !this.reactionState) return;
 
     this.reactionState = submitResponse(this.reactionState, seat, { type: 'pass' });
 
@@ -1138,6 +1209,165 @@ export class MahjongRoom extends Room<GameState> {
         this.advanceToNextPlayer(reaction.discardSeat);
         break;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Blind Kan reaction
+  // ---------------------------------------------------------------------------
+
+  private checkBlindKanReactionResolution() {
+    if (!this.blindKanReaction) return;
+    const allResponded = this.blindKanReaction.eligibleSeats.every(
+      (s) => this.blindKanReaction!.responses[s] !== null,
+    );
+    if (allResponded) {
+      this.resolveBlindKanReaction();
+    }
+  }
+
+  private resolveBlindKanReaction() {
+    if (!this.blindKanReaction) return;
+    const reaction = this.blindKanReaction;
+    this.blindKanReaction = null;
+
+    // Reset hasPassedReaction flags
+    for (let i = 0; i < 4; i++) {
+      const seatSchema = this.state.seats.get(String(i));
+      if (seatSchema) seatSchema.hasPassedReaction = false;
+    }
+
+    // Check if anyone claimed ron
+    for (const seat of reaction.eligibleSeats) {
+      const resp = reaction.responses[seat];
+      if (resp && resp.type === 'ron') {
+        this.resolveBlindKanRon(seat, reaction.kanSeat, reaction.kanTile);
+        return;
+      }
+    }
+
+    // All passed — continue with replacement draw for the kan player
+    const kanMelds = this.seatMelds.get(reaction.kanSeat) ?? [];
+    const lastMeld = kanMelds[kanMelds.length - 1];
+    this.drawReplacementAndContinue(reaction.kanSeat, lastMeld);
+  }
+
+  private resolveBlindKanRon(winnerSeat: number, kanSeat: number, kanTile: TileDef) {
+    const winnerConcealed = this.concealedTiles.get(winnerSeat) ?? [];
+    const winnerMelds = this.seatMelds.get(winnerSeat) ?? [];
+    const decomposition = decomposeWinningHand([...winnerConcealed, kanTile], winnerMelds.length);
+    if (!decomposition) return;
+
+    const seatWind = MahjongRoom.SEAT_WINDS[winnerSeat];
+    const patterns = evaluateHKPatterns([...winnerConcealed, kanTile], winnerMelds, 'ron', seatWind, this.roundWind);
+    const hasGong = winnerMelds.some(m => m.type.startsWith('kan'));
+    const isDealer = winnerSeat === this.dealerSeat;
+    const scoreResult = calculateHKScore(patterns, hasGong, isDealer);
+
+    // Blind Kan ron: kan player pays the full amount alone
+    const totalScore = scoreResult.total;
+
+    // Update scores — kan player pays 100%
+    this.scores[winnerSeat] += totalScore;
+    this.scores[kanSeat] -= totalScore;
+
+    // Transition to HAND_END
+    const handEndPhase: GamePhase = {
+      type: 'HAND_END',
+      endReason: 'win',
+      result: null as any,
+    };
+    if (canTransition(this.gamePhase, handEndPhase)) {
+      this.setPhase(handEndPhase);
+      this.state.winInfo = JSON.stringify({
+        winner: winnerSeat,
+        winType: 'ron',
+        fan: scoreResult.fan,
+        total: totalScore,
+        hasGong,
+        gongMultiplier: scoreResult.gongMultiplier,
+        patterns: patterns.map((p) => ({ id: p.id, name: p.name, fanValue: p.fanValue })),
+        blindKanRon: true,
+        losingSeat: kanSeat,
+      });
+      this.syncSchemaFromInternal();
+
+      this.broadcast('hand-result', {
+        winner: winnerSeat,
+        winType: 'ron',
+        fan: scoreResult.fan,
+        total: totalScore,
+        hasGong,
+        gongMultiplier: scoreResult.gongMultiplier,
+        patterns: patterns.map((p) => ({ id: p.id, name: p.name, fanValue: p.fanValue })),
+        winnerTiles: winnerConcealed
+          .sort((a, b) => tileSortKey(a).localeCompare(tileSortKey(b)))
+          .map(t => t.id),
+        winnerMelds: winnerMelds.map(m => ({ type: m.type, tileIds: m.tiles.map(t => t.id) })),
+        blindKanRon: true,
+        losingSeat: kanSeat,
+        fromPlayer: kanSeat,
+        toPlayer: winnerSeat,
+        scores: this.scores.map((score, i) => ({ seatIndex: i, points: score })),
+      });
+    }
+  }
+
+  private handleDeclareWinRonBlindKan(client: Client) {
+    if (this.gamePhase.type !== 'BLIND_KAN_REACTION' || !this.blindKanReaction) return;
+    const seat = this.getSeatForClient(client);
+    if (seat === null) return;
+    if (!this.blindKanReaction.eligibleSeats.includes(seat)) return;
+    if (this.blindKanReaction.responses[seat] !== null) return;
+
+    this.blindKanReaction.responses[seat] = { type: 'ron' };
+    this.checkBlindKanReactionResolution();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Spectator join
+  // ---------------------------------------------------------------------------
+
+  private handleSpectatorJoinSeat(client: Client, data: { seatIndex: number }) {
+    if (!this.spectatorSessions.has(client.sessionId)) return;
+    if (this.gamePhase.type !== 'HAND_END' && this.gamePhase.type !== 'ROUND_END' && this.gamePhase.type !== 'MATCH_END') return;
+
+    const requestedSeat = data.seatIndex;
+    if (requestedSeat < 0 || requestedSeat >= 4) return;
+
+    // Check if the seat is occupied by a bot (no real session)
+    const sessionForSeat = this.seatToSession.get(requestedSeat);
+    if (sessionForSeat !== undefined) {
+      // Seat is occupied by a real player
+      client.send('seat-join-error', { reason: 'Seat is occupied by a player' });
+      return;
+    }
+
+    // Check if there's a player schema for this seat
+    const existingPlayer = Array.from(this.state.players.values()).find(
+      (p) => p.seatIndex === requestedSeat && !p.isSpectator,
+    );
+    if (existingPlayer && existingPlayer.isConnected) {
+      client.send('seat-join-error', { reason: 'Seat is occupied' });
+      return;
+    }
+
+    // Move spectator to the seat
+    const player = this.state.players.get(client.sessionId);
+    if (!player) return;
+
+    // Remove old player if they were disconnected bot
+    if (existingPlayer) {
+      this.state.players.delete(existingPlayer.playerId);
+    }
+
+    player.isSpectator = false;
+    player.seatIndex = requestedSeat;
+    player.isReady = true;
+    this.sessionToSeat.set(client.sessionId, requestedSeat);
+    this.seatToSession.set(requestedSeat, client.sessionId);
+    this.spectatorSessions.delete(client.sessionId);
+
+    client.send('seat-joined', { seatIndex: requestedSeat });
   }
 
   // ---------------------------------------------------------------------------
@@ -1511,7 +1741,55 @@ export class MahjongRoom extends Room<GameState> {
     this.seatMelds.get(seat)!.push(meld);
     this.incrementHandVersion(seat);
 
-    // Draw a replacement tile from the dead wall
+    // Blind Kan ron check: check if any other player can win off this tile
+    const eligibleSeats: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      if (i === seat) continue;
+      const otherConcealed = this.concealedTiles.get(i) ?? [];
+      const otherMelds = this.seatMelds.get(i) ?? [];
+      if (canRonBlindKan(otherConcealed, otherMelds.length, targetTile)) {
+        eligibleSeats.push(i);
+      }
+    }
+
+    if (eligibleSeats.length > 0) {
+      // Open blind kan reaction window
+      const responses: Record<number, { type: 'pass' | 'ron' } | null> = {};
+      for (const s of eligibleSeats) responses[s] = null;
+
+      this.blindKanReaction = {
+        kanSeat: seat,
+        kanTile: targetTile,
+        eligibleSeats,
+        responses,
+      };
+
+      this.gamePhase = {
+        type: 'BLIND_KAN_REACTION',
+        kanSeat: seat,
+        kanTile: targetTile,
+        pendingSeats: eligibleSeats,
+      };
+
+      // Send reaction options to eligible seats
+      for (const s of eligibleSeats) {
+        const sess = this.seatToSession.get(s);
+        if (sess) {
+          const c = this.clients.getById(sess);
+          if (c) {
+            c.send('blind-kan-reaction-options', {
+              kanSeat: seat,
+              kanTileId: targetTile.id,
+              actions: ['PASS_REACTION', 'DECLARE_WIN_RON_BLIND_KAN'],
+            });
+          }
+        }
+      }
+
+      return; // Don't draw replacement yet — wait for reaction resolution
+    }
+
+    // No one can win off it — draw replacement tile from dead wall
     this.drawReplacementAndContinue(seat, meld);
   }
 

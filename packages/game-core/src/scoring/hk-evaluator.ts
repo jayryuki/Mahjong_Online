@@ -12,7 +12,7 @@ export interface HKFanMatch {
 export function evaluateHKPatterns(
   concealed: TileDef[],
   melds: Meld[],
-  winType: 'tsumo',
+  winType: 'tsumo' | 'ron',
   seatWind: 'east' | 'south' | 'west' | 'north',
   roundWind: 'east' | 'south' | 'west' | 'north',
 ): HKFanMatch[] {

@@ -14,10 +14,19 @@ const getLocalRoomById = (matchMaker as any).getLocalRoomById.bind(matchMaker) a
 const app = express();
 app.use(express.json());
 
-// Serve the frontend build
+// Serve frontend builds based on host
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const webDist = path.resolve(__dirname, '../../web/dist');
-app.use(express.static(webDist));
+const mahjongDist = path.resolve(__dirname, '../../web/dist');
+const blackjackDist = path.resolve(__dirname, '../blackjack-dist');
+
+app.use((req, res, next) => {
+  const host = req.hostname || req.headers.host || '';
+  if (host.includes('blackjack')) {
+    express.static(blackjackDist)(req, res, next);
+  } else {
+    express.static(mahjongDist)(req, res, next);
+  }
+});
 
 const server = createServer(app);
 const transport = new WebSocketTransport({ server });
@@ -119,8 +128,10 @@ app.get('/api/rooms/:code', (req, res) => {
 });
 
 // SPA catch-all: serve index.html for all non-API routes (React Router)
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(webDist, 'index.html'));
+app.get('*', (req, res) => {
+  const host = req.hostname || req.headers.host || '';
+  const dist = host.includes('blackjack') ? blackjackDist : mahjongDist;
+  res.sendFile(path.join(dist, 'index.html'));
 });
 
 const PORT: number = parseInt(process.env.PORT || '2500', 10);

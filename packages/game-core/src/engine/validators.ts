@@ -53,6 +53,15 @@ function canRon(round: RoundState, seatIndex: number): boolean {
   return false;
 }
 
+export function canRonBlindKan(
+  concealed: TileDef[],
+  meldCount: number,
+  kanTile: TileDef,
+): boolean {
+  // Check if adding the blind kan tile to this hand forms a winning shape
+  return isValidWinningShape([...concealed, kanTile], meldCount);
+}
+
 function canPon(round: RoundState, seatIndex: number, preset: RulesPreset): boolean {
   if (!preset.allowPon || !preset.allowOpenHand) return false;
   return round.reaction !== null;
