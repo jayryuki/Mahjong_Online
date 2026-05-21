@@ -6,8 +6,8 @@ import { parseTileId } from '../../lib/tile-utils.js';
 
 /** Minimum tile width before we allow wrapping to more rows */
 const MIN_TILE_W = 36;
-/** Aspect ratio: width / height = 1 / 1.4 */
-const TILE_ASPECT = 1.4;
+/** Aspect ratio: width / height = 1 / 1.35 (slightly shorter to save vertical space) */
+const TILE_ASPECT = 1.35;
 
 interface HandAreaProps {
   tiles: TileDef[];
@@ -94,19 +94,31 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
   const scale = useScale();
   const tileCount = tiles.length;
   const isMobile = scale < 0.75;
-  const gap = isMobile ? 2 : 4;
+  const gap = isMobile ? 1 : 4;
   const hasDrawn = drawnTileId !== null;
-  const drawnExtraMargin = hasDrawn ? Math.round(gap * 1.5) : 0;
-  const rawWidth = measuredWidth > 0 ? measuredWidth : window.innerWidth - 8;
-  const availableWidth = rawWidth - drawnExtraMargin;
-  const maxTileW = isMobile ? 42 : 68;
-  const minTileW = isMobile ? 28 : MIN_TILE_W;
+  // The drawn tile adds a flex gap + its own marginLeft
+  const drawnExtraMargin = hasDrawn ? Math.round(gap * 2.5) : 0;
+  const rawWidth = measuredWidth > 0 ? measuredWidth : Math.max(320, window.innerWidth - 8);
+  // Conservative available width: account for drawn tile margin and a small safety buffer
+  const availableWidth = Math.max(0, rawWidth - drawnExtraMargin - gap * 2);
+  const maxTileW = isMobile ? 52 : 68;
+  const minTileW = isMobile ? 24 : MIN_TILE_W;
 
-  // --- Width-only tile sizing ---
-  // Fit tiles in as few rows as possible (1 preferred, 2 max)
+  // --- Smart row & tile sizing ---
+  // On mobile, force 2 rows when >= 10 tiles so each tile can be larger
+  // (1 row of 13 tiny tiles is unreadable; 2 rows of 7 larger tiles is much better)
+  const forceTwoRows = isMobile && tileCount >= 10;
   const maxTilesPerRow = Math.max(1, Math.floor((availableWidth + gap) / (minTileW + gap)));
-  const rows = tileCount > 0 ? Math.min(Math.ceil(tileCount / maxTilesPerRow), 2) : 1;
-  const perRow = Math.ceil(tileCount / rows);
+  let rows = tileCount > 0 ? Math.min(Math.ceil(tileCount / maxTilesPerRow), 2) : 1;
+  if (forceTwoRows && rows === 1) rows = 2;
+
+  let perRow = Math.ceil(tileCount / rows);
+  // Ensure perRow tiles at maxTileW actually fit; if not, increase rows
+  while (rows < 2 && perRow * maxTileW + Math.max(0, perRow - 1) * gap + drawnExtraMargin > rawWidth) {
+    rows++;
+    perRow = Math.ceil(tileCount / rows);
+  }
+
   const gapsWidth = Math.max(0, perRow - 1) * gap;
   const widthBasedW = perRow > 0 ? Math.floor((availableWidth - gapsWidth) / perRow) : maxTileW;
 

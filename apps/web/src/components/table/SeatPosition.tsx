@@ -30,8 +30,9 @@ function renderMeldTile(tile: TileDef, w: number, h: number, concealed: boolean)
 
 export function SeatPosition({ position, seatIndex, displayName, tileCount, isDealer, isActive, score, melds }: SeatPositionProps) {
   const scale = useScale();
-  const meldTileW = Math.round(BASE_MELD_TILE_W * scale);
-  const meldTileH = Math.round(BASE_MELD_TILE_H * scale);
+  const isMobile = scale < 0.75;
+  const meldTileW = Math.round(BASE_MELD_TILE_W * scale * (isMobile ? 0.85 : 1));
+  const meldTileH = Math.round(BASE_MELD_TILE_H * scale * (isMobile ? 0.85 : 1));
   const hasMelds = melds.length > 0;
 
   return (
@@ -43,7 +44,7 @@ export function SeatPosition({ position, seatIndex, displayName, tileCount, isDe
     }}>
       {/* Compact nameplate */}
       <div style={{
-        padding: `${3 * scale}px ${8 * scale}px`,
+        padding: isMobile ? `${2 * scale}px ${5 * scale}px` : `${3 * scale}px ${8 * scale}px`,
         borderRadius: '6px',
         background: isActive ? 'var(--accent-warm)' : 'rgba(0,0,0,0.6)',
         border: isActive ? 'none' : '1px solid rgba(255,255,255,0.2)',

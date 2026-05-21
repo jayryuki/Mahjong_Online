@@ -584,6 +584,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   }
 
   const scale = useScale();
+  const isMobile = scale < 0.75;
 
   // Render a tile for the winning hand display
   const renderResultTile = (tile: TileDef, w: number, h: number) => {
@@ -637,7 +638,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           height: '100%',
           display: 'grid',
           gridTemplateRows: 'auto 1fr auto',
-          gridTemplateColumns: 'minmax(0, 0.4fr) 3.2fr minmax(0, 0.4fr)',
+          gridTemplateColumns: isMobile ? 'minmax(0, 0.25fr) 3.5fr minmax(0, 0.25fr)' : 'minmax(0, 0.4fr) 3.2fr minmax(0, 0.4fr)',
           gridTemplateAreas: `
             ". top ."
             "left center right"
@@ -645,8 +646,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           `,
           minHeight: 0,
           background: 'radial-gradient(ellipse at center, #2d5a3d 0%, #1e3f2a 60%, #152b1e 100%)',
-          padding: '6px',
-          gap: '6px',
+          padding: isMobile ? '3px' : '6px',
+          gap: isMobile ? '3px' : '6px',
           position: 'relative',
           zIndex: 1,
         }}>
@@ -726,7 +727,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         )}
 
         {/* Row 3: Hand tiles (dedicated, tiles only) */}
-        <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: '8px', paddingBottom: '8px' }}>
+        <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: isMobile ? '4px' : '8px', paddingBottom: isMobile ? '4px' : '8px' }}>
           <HandArea
             tiles={handTiles}
             drawnTileId={drawnTileId}

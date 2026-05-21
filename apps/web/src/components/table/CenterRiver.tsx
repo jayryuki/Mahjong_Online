@@ -9,7 +9,8 @@ interface CenterRiverProps {
   seats: SeatDisplay[];
 }
 
-const TILES_PER_ROW = 6;
+const DESKTOP_TILES_PER_ROW = 6;
+const MOBILE_TILES_PER_ROW = 4;
 const GAP = 3;
 
 interface RiverEntry {
@@ -30,21 +31,22 @@ interface QuadrantLayout {
   rowAlign: 'flex-start' | 'flex-end';
 }
 
-function computeLayouts(tableW: number, tableH: number) {
+function computeLayouts(tableW: number, tableH: number, isMobile: boolean) {
   const aspect = 58 / 80;
   const gap = 8;
 
-  const centerW = tableW * 0.6;
-  const centerH = tableH * 0.72;
+  // On mobile, use a smaller center area % so the board is more compact
+  const centerW = tableW * (isMobile ? 0.5 : 0.6);
+  const centerH = tableH * (isMobile ? 0.6 : 0.72);
   const quadW = (centerW - gap) / 2;
   const quadH = (centerH - gap) / 2;
 
-  // Tile size: fit 3 columns in a quadrant
-  const targetCols = 3;
+  // Tile size: fit 3 columns in a quadrant (2 on mobile)
+  const targetCols = isMobile ? 2 : 3;
   let tileW = (quadW - GAP * (targetCols - 1)) / targetCols;
   let tileH = tileW / aspect;
 
-  const maxRows = 4;
+  const maxRows = isMobile ? 3 : 4;
   if (tileH * maxRows + (maxRows - 1) * GAP > quadH) {
     tileH = (quadH - (maxRows - 1) * GAP) / maxRows;
     tileW = tileH * aspect;
@@ -153,6 +155,7 @@ function RiverSection({
 
 export function CenterRiver({ mySeat, seats }: CenterRiverProps) {
   const scale = useScale();
+  const isMobile = scale < 0.75;
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
 
@@ -187,7 +190,8 @@ export function CenterRiver({ mySeat, seats }: CenterRiverProps) {
 
   const tableW = containerSize.w || 400;
   const tableH = containerSize.h || 300;
-  const { tileW, tileH, layouts } = computeLayouts(tableW, tableH);
+  const { tileW, tileH, layouts } = computeLayouts(tableW, tableH, isMobile);
+  const tilesPerRow = isMobile ? MOBILE_TILES_PER_ROW : DESKTOP_TILES_PER_ROW;
 
   return (
     <div ref={containerRef} style={{
@@ -209,7 +213,7 @@ export function CenterRiver({ mySeat, seats }: CenterRiverProps) {
 
       {Array.from(seatRivers.entries()).map(([seatOffset, entries]) => {
         const ql = layouts[seatOffset];
-        const cols = Math.min(TILES_PER_ROW, entries.length, Math.max(1, Math.floor((ql.maxW + GAP) / (tileW + GAP))));
+        const cols = Math.min(tilesPerRow, entries.length, Math.max(1, Math.floor((ql.maxW + GAP) / (tileW + GAP))));
 
         return (
           <div key={seatOffset} style={{
