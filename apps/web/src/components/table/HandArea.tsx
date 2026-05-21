@@ -54,7 +54,51 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     }, 250);
   };
 
-  // Drag-and-drop handlers
+  // --- Sizing calculations (must come before callbacks that reference them) ---
+  const scale = useScale();
+  const tileCount = tiles.length;
+  const isMobile = scale < 0.75;
+  const gap = isMobile ? 2 : 4;
+  const hasDrawn = drawnTileId !== null;
+  const rawWidth = measuredWidth > 0 ? measuredWidth : Math.max(320, window.innerWidth - 8);
+  const maxTileW = isMobile ? 52 : 68;
+  const minTileW = isMobile ? 24 : MIN_TILE_W;
+
+  // Row layout: mobile explicit 2 rows (6+7 for 13, 7+7 for 14)
+  let topRowCount = 0;
+  let bottomRowCount = 0;
+  let perRow = tileCount;
+
+  if (isMobile && tileCount >= 10) {
+    if (tileCount === 13) {
+      topRowCount = 6;
+      bottomRowCount = 7;
+    } else if (tileCount === 14) {
+      topRowCount = 7;
+      bottomRowCount = 7;
+    } else {
+      topRowCount = Math.ceil(tileCount / 2);
+      bottomRowCount = tileCount - topRowCount;
+    }
+    perRow = Math.max(topRowCount, bottomRowCount);
+  }
+
+  const useTwoRows = isMobile && topRowCount > 0;
+  const drawnExtraMargin = hasDrawn ? Math.round(gap * 2.5) : 0;
+  const availableWidth = Math.max(0, rawWidth - drawnExtraMargin - gap * 2);
+
+  const gapsWidth = Math.max(0, perRow - 1) * gap;
+  const widthBasedW = perRow > 0 ? Math.floor((availableWidth - gapsWidth) / perRow) : maxTileW;
+  const baseW = Math.max(minTileW, Math.min(widthBasedW, maxTileW));
+  const baseH = Math.round(baseW * TILE_ASPECT);
+
+  // Keep layout values in refs so touch handlers can read latest values without re-binding
+  const layoutRef = useRef({ baseW, gap, topRowCount, bottomRowCount, tileCount });
+  layoutRef.current = { baseW, gap, topRowCount, bottomRowCount, tileCount };
+
+  const wildSortKey = wildCardTileId ? tileSortKey(parseTileId(wildCardTileId)) : null;
+
+  // --- Desktop HTML5 Drag-and-drop handlers ---
   const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
     setDragIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -91,53 +135,72 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     setDropIndex(null);
   }, []);
 
-  const scale = useScale();
-  const tileCount = tiles.length;
-  const isMobile = scale < 0.75;
-  const gap = isMobile ? 1 : 4;
-  const hasDrawn = drawnTileId !== null;
-  // The drawn tile adds a flex gap + its own marginLeft
-  const drawnExtraMargin = hasDrawn ? Math.round(gap * 2.5) : 0;
-  const rawWidth = measuredWidth > 0 ? measuredWidth : Math.max(320, window.innerWidth - 8);
-  // Conservative available width: account for drawn tile margin and a small safety buffer
-  const availableWidth = Math.max(0, rawWidth - drawnExtraMargin - gap * 2);
-  const maxTileW = isMobile ? 52 : 68;
-  const minTileW = isMobile ? 24 : MIN_TILE_W;
+  // --- Mobile touch drag-and-drop ---
+  const [touchDragIndex, setTouchDragIndex] = useState<number | null>(null);
+  const [touchDropIndex, setTouchDropIndex] = useState<number | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+  const topRowRef = useRef<HTMLDivElement>(null);
+  const bottomRowRef = useRef<HTMLDivElement>(null);
 
-  // --- Smart row & tile sizing ---
-  // On mobile, force 2 rows when >= 10 tiles so each tile can be larger
-  // (1 row of 13 tiny tiles is unreadable; 2 rows of 7 larger tiles is much better)
-  const forceTwoRows = isMobile && tileCount >= 10;
-  const maxTilesPerRow = Math.max(1, Math.floor((availableWidth + gap) / (minTileW + gap)));
-  let rows = tileCount > 0 ? Math.min(Math.ceil(tileCount / maxTilesPerRow), 2) : 1;
-  if (forceTwoRows && rows === 1) rows = 2;
+  const handleTouchStart = useCallback((index: number, e: React.TouchEvent) => {
+    if (!onReorder) return;
+    const t = e.touches[0];
+    touchStartPos.current = { x: t.clientX, y: t.clientY };
+    setTouchDragIndex(index);
+  }, [onReorder]);
 
-  let perRow = Math.ceil(tileCount / rows);
-  // Ensure perRow tiles at maxTileW actually fit; if not, increase rows
-  while (rows < 2 && perRow * maxTileW + Math.max(0, perRow - 1) * gap + drawnExtraMargin > rawWidth) {
-    rows++;
-    perRow = Math.ceil(tileCount / rows);
-  }
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchDragIndex === null) return;
+    e.preventDefault();
+    const t = e.touches[0];
 
-  const gapsWidth = Math.max(0, perRow - 1) * gap;
-  const widthBasedW = perRow > 0 ? Math.floor((availableWidth - gapsWidth) / perRow) : maxTileW;
+    const { baseW: bw, gap: g, topRowCount: trc, bottomRowCount: brc, tileCount: tc } = layoutRef.current;
 
-  // Width-only: no height-based constraint (hand row is auto-height)
-  const baseW = Math.max(minTileW, Math.min(widthBasedW, maxTileW));
-  const baseH = Math.round(baseW * TILE_ASPECT);
+    // Find which row the finger is over
+    const topRect = topRowRef.current?.getBoundingClientRect();
+    const bottomRect = bottomRowRef.current?.getBoundingClientRect();
 
-  const wildSortKey = wildCardTileId ? tileSortKey(parseTileId(wildCardTileId)) : null;
+    let targetIdx: number | null = null;
 
-  const renderTile = (tile: TileDef, index: number, isDrawn: boolean) => {
-    const isSelected = selectedIndex === index;
-    const isDiscarding = discardingId === tile.id;
-    const isWild = wildSortKey !== null && tileSortKey(tile) === wildSortKey;
-    const isDragging = dragIndex === index;
-    const isDropTarget = dropIndex === index && dragIndex !== index;
+    const calcIdxInRow = (rect: DOMRect, rowCount: number, rowOffset: number) => {
+      const relX = t.clientX - rect.left;
+      const rowContentWidth = rowCount * bw + (rowCount - 1) * g;
+      const rowLeft = (rect.width - rowContentWidth) / 2;
+      const idxInRow = Math.floor((relX - rowLeft + bw / 2) / (bw + g));
+      return rowOffset + Math.max(0, Math.min(rowCount - 1, idxInRow));
+    };
 
-    const tileEl = <TileRenderer tile={tile} width={baseW} height={baseH} selected={isSelected} onClick={canDiscard ? () => setSelectedIndex(isSelected ? null : index) : undefined} />;
+    if (topRect && t.clientY >= topRect.top && t.clientY <= topRect.bottom) {
+      targetIdx = calcIdxInRow(topRect, trc, 0);
+    } else if (bottomRect && t.clientY >= bottomRect.top && t.clientY <= bottomRect.bottom) {
+      targetIdx = calcIdxInRow(bottomRect, brc, trc);
+    }
 
-    const wrapperStyle: React.CSSProperties = {
+    if (targetIdx !== null && targetIdx >= 0 && targetIdx < tc) {
+      setTouchDropIndex(targetIdx);
+    }
+  }, [touchDragIndex]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchDragIndex === null || touchDropIndex === null) {
+      setTouchDragIndex(null);
+      setTouchDropIndex(null);
+      touchStartPos.current = null;
+      return;
+    }
+    if (touchDragIndex !== touchDropIndex && onReorder) {
+      const newTiles = [...tiles];
+      const [moved] = newTiles.splice(touchDragIndex, 1);
+      newTiles.splice(touchDropIndex, 0, moved);
+      onReorder(newTiles);
+    }
+    setTouchDragIndex(null);
+    setTouchDropIndex(null);
+    touchStartPos.current = null;
+  }, [touchDragIndex, touchDropIndex, tiles, onReorder]);
+
+  const makeWrapperStyle = (index: number, isDrawn: boolean, isSelected: boolean, isDiscarding: boolean, isWild: boolean, isDragging: boolean, isDropTarget: boolean): React.CSSProperties => {
+    const style: React.CSSProperties = {
       flex: `0 0 ${baseW}px`,
       width: baseW,
       minWidth: 0,
@@ -151,8 +214,41 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       ...(isWild && !isDrawn && { borderRadius: '4px', boxShadow: 'inset 0 0 0 2px #fbbf24, 0 0 8px rgba(251,191,36,0.4)' }),
       ...(isDropTarget && { borderLeft: '3px solid var(--accent-warm)', marginLeft: -1 }),
     };
+    if (isDrawn) {
+      const borderColor = isWild ? '#fbbf24' : 'var(--accent-warm)';
+      const glowColor = isWild
+        ? '0 0 12px 3px rgba(251,191,36,0.6), 0 0 24px 6px rgba(251,191,36,0.25)'
+        : '0 0 12px 3px rgba(184,92,58,0.6), 0 0 24px 6px rgba(184,92,58,0.25)';
+      style.transform = 'translateY(-4px)';
+      style.animation = 'tileDrawIn 400ms ease-out';
+      style.borderRadius = '8px';
+      style.marginLeft = Math.round(gap * 1.5);
+      style.boxShadow = `inset 0 0 0 2px ${borderColor}, ${glowColor}`;
+    }
+    return style;
+  };
 
-    const dragHandlers = onReorder ? {
+  const renderTileEl = (tile: TileDef, index: number, isDrawn: boolean) => {
+    const isSelected = selectedIndex === index;
+    const isDiscarding = discardingId === tile.id;
+    const isWild = wildSortKey !== null && tileSortKey(tile) === wildSortKey;
+    const isDragging = dragIndex === index || touchDragIndex === index;
+    const isDropTarget = (dropIndex === index && dragIndex !== null && dragIndex !== index) ||
+                         (touchDropIndex === index && touchDragIndex !== null && touchDragIndex !== index);
+
+    const tileEl = (
+      <TileRenderer
+        tile={tile}
+        width={baseW}
+        height={baseH}
+        selected={isSelected}
+        onClick={canDiscard ? () => setSelectedIndex(isSelected ? null : index) : undefined}
+      />
+    );
+
+    const wrapperStyle = makeWrapperStyle(index, isDrawn, isSelected, isDiscarding, isWild, isDragging, isDropTarget);
+
+    const desktopDragHandlers = onReorder ? {
       draggable: true,
       onDragStart: (e: React.DragEvent) => handleDragStart(index, e),
       onDragOver: (e: React.DragEvent) => handleDragOver(index, e),
@@ -161,40 +257,68 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       onDragEnd: handleDragEnd,
     } : {};
 
-    // Drawn tile: glow + slight lift, zero extra row height, no label
-    if (isDrawn) {
-      const borderColor = isWild ? '#fbbf24' : 'var(--accent-warm)';
-      const glowColor = isWild
-        ? '0 0 12px 3px rgba(251,191,36,0.6), 0 0 24px 6px rgba(251,191,36,0.25)'
-        : '0 0 12px 3px rgba(184,92,58,0.6), 0 0 24px 6px rgba(184,92,58,0.25)';
-      return (
-        <div key={tile.id} style={{
-          ...wrapperStyle,
-          transform: 'translateY(-4px)',
-          animation: 'tileDrawIn 400ms ease-out',
-          borderRadius: '8px',
-          marginLeft: Math.round(gap * 1.5),
-          boxShadow: `inset 0 0 0 2px ${borderColor}, ${glowColor}`,
-        }} {...dragHandlers}>
-          {tileEl}
-        </div>
-      );
-    }
+    const mobileTouchHandlers = (onReorder && isMobile) ? {
+      onTouchStart: (e: React.TouchEvent) => handleTouchStart(index, e),
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd,
+    } : {};
 
-    return <div key={tile.id} style={wrapperStyle} {...dragHandlers}>{tileEl}</div>;
+    return (
+      <div key={tile.id} style={wrapperStyle} {...desktopDragHandlers} {...mobileTouchHandlers}>
+        {tileEl}
+      </div>
+    );
   };
 
+  // Desktop: single flex-wrap row
+  if (!useTwoRows) {
+    return (
+      <div ref={tileRowRef} style={{
+        display: 'flex',
+        gap,
+        padding: `${gap}px ${gap}px 0`,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        flexWrap: 'wrap',
+        width: '100%',
+      }}>
+        {tiles.map((tile, i) => renderTileEl(tile, i, tile.id === drawnTileId))}
+      </div>
+    );
+  }
+
+  // Mobile: explicit two rows
+  const topTiles = tiles.slice(0, topRowCount);
+  const bottomTiles = tiles.slice(topRowCount);
+
   return (
-    <div ref={tileRowRef} style={{
+    <div style={{
       display: 'flex',
-      gap,
+      flexDirection: 'column',
+      gap: 4,
       padding: `${gap}px ${gap}px 0`,
-      justifyContent: 'center',
-      alignItems: 'flex-end',
-      flexWrap: 'wrap',
+      alignItems: 'center',
       width: '100%',
+      touchAction: 'none',
     }}>
-      {tiles.map((tile, i) => renderTile(tile, i, tile.id === drawnTileId))}
+      <div ref={topRowRef} style={{
+        display: 'flex',
+        gap,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        width: '100%',
+      }}>
+        {topTiles.map((tile, i) => renderTileEl(tile, i, tile.id === drawnTileId))}
+      </div>
+      <div ref={bottomRowRef} style={{
+        display: 'flex',
+        gap,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        width: '100%',
+      }}>
+        {bottomTiles.map((tile, i) => renderTileEl(tile, topRowCount + i, tile.id === drawnTileId))}
+      </div>
     </div>
   );
 }
