@@ -1125,6 +1125,13 @@ export class BlackjackRoom extends Room<GameState> {
           player.isReady = true;
         }
       }
+
+      // Auto-start next round after 20 seconds if host hasn't clicked
+      this.turnTimer = setTimeout(() => {
+        if (this.gamePhase.type === 'ROUND_END') {
+          this.startBettingPhase();
+        }
+      }, 20000);
     }, 1000);
   }
 
