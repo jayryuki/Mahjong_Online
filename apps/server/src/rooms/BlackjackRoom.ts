@@ -8,6 +8,7 @@ import {
   createDeck,
   shuffleDeck,
   drawCard,
+  shouldReshuffle,
   handValue,
   createHand,
   addCardToHand,
@@ -49,6 +50,7 @@ export class BlackjackRoom extends Room<GameState> {
   private seatToSession: Map<number, string> = new Map();
   private gamePhase: GamePhase = { type: 'LOBBY' };
   private botTimers: Map<string, NodeJS.Timeout> = new Map();
+  private turnTimer: NodeJS.Timeout | null = null;
 
   onCreate(options: { preset: string; hostPlayerId: string; roomCode: string }) {
     this.setState(new GameState());
@@ -57,7 +59,7 @@ export class BlackjackRoom extends Room<GameState> {
     this.state.hostPlayerId = options.hostPlayerId;
     this.state.status = 'lobby';
     this.state.phase = 'LOBBY';
-    this.state.numDecks = 6;
+    this.state.numDecks = 2;
     this.state.minBet = 10;
     this.state.maxBet = 500;
 
@@ -70,9 +72,10 @@ export class BlackjackRoom extends Room<GameState> {
       this.handleToggleReady(client);
     });
 
-    this.onMessage('start-round', (_client) => {
-      // Only allow starting a new round from ROUND_END or LOBBY
+    this.onMessage('start-round', (client) => {
       if (this.gamePhase.type !== 'ROUND_END' && this.gamePhase.type !== 'LOBBY') return;
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.isHost) return;
       this.startBettingPhase();
     });
 
@@ -97,6 +100,24 @@ export class BlackjackRoom extends Room<GameState> {
       this.state.chatMessages.push(msg);
       while (this.state.chatMessages.length > 50) {
         this.state.chatMessages.shift();
+      }
+    });
+
+    this.onMessage('change-decks', (client, data: { numDecks: number }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.isHost) return;
+      const validDecks = [1, 2, 4, 6];
+      if (!validDecks.includes(data.numDecks)) return;
+      this.state.numDecks = data.numDecks;
+    });
+
+    this.onMessage('kick-player', (client, data: { targetId: string }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (!player || !player.isHost) return;
+      if (!data.targetId || data.targetId === client.sessionId) return;
+      const target = this.clients.find(c => c.sessionId === data.targetId);
+      if (target) {
+        target.leave(4001, 'Kicked by host');
       }
     });
   }
@@ -127,9 +148,22 @@ export class BlackjackRoom extends Room<GameState> {
       currentBet: 0,
       hasBet: false,
     });
+
+    // If joining during BETTING phase, send bet prompt to new player
+    if (this.state.phase === 'BETTING') {
+      const internal = this.internalState.get(client.sessionId);
+      if (internal && !internal.hasBet) {
+        client.send('place-your-bet', {
+          minBet: this.state.minBet,
+          maxBet: this.state.maxBet,
+        });
+        this.clock.setTimeout(() => this.checkAllBetsPlaced(), 100);
+      }
+    }
   }
 
   onLeave(client: Client) {
+    this.clearTurnTimer();
     const seat = this.sessionToSeat.get(client.sessionId);
     if (seat !== undefined) {
       this.seatToSession.delete(seat);
@@ -137,6 +171,16 @@ export class BlackjackRoom extends Room<GameState> {
     this.sessionToSeat.delete(client.sessionId);
     this.internalState.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
+
+    // Transfer host ownership if the leaving player was host
+    if (client.sessionId === this.state.hostPlayerId) {
+      const remainingPlayers = Array.from(this.state.players.values());
+      if (remainingPlayers.length > 0) {
+        const newHost = remainingPlayers[0];
+        this.state.hostPlayerId = newHost.playerId;
+        newHost.isHost = true;
+      }
+    }
 
     // If it was this player's turn, advance to the next player
     if (this.gamePhase.type === 'PLAYER_TURN' && seat === this.activeSeat) {
@@ -335,27 +379,57 @@ export class BlackjackRoom extends Room<GameState> {
       }
     }
 
-    // Create and shuffle deck
-    this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+    // Check if deck needs reshuffling (or first round)
+    if (!this.deck || shouldReshuffle(this.deck)) {
+      const phase: GamePhase = { type: 'SHUFFLING' };
+      this.setPhase(phase);
+      this.syncAllPlayers();
+      this.broadcast('shuffling', {});
 
-    // Set phase
+      setTimeout(() => {
+        this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+        this.startBettingAfterShuffle();
+      }, 2000);
+    } else {
+      this.startBettingAfterShuffle();
+    }
+  }
+
+  private startBettingAfterShuffle() {
     const phase: GamePhase = { type: 'BETTING' };
     this.setPhase(phase);
+
+    // Auto-bet $0 for players with insufficient bankroll (they sit out this round)
+    for (const [sessionId, internal] of this.internalState) {
+      if (internal.bankroll < this.state.minBet && !internal.hasBet) {
+        internal.currentBet = 0;
+        internal.hasBet = true;
+        this.syncPlayerState(sessionId);
+      }
+    }
+
     this.syncAllPlayers();
 
     // Notify human players to place bets
     const occupied = this.getOccupiedSeats();
     for (const seat of occupied) {
       if (!this.isBot(seat)) {
-        const client = this.getClientForSeat(seat);
-        if (client) {
-          client.send('place-your-bet', {
-            minBet: this.state.minBet,
-            maxBet: this.state.maxBet,
-          });
+        const sessionId = this.seatToSession.get(seat);
+        const internal = sessionId ? this.internalState.get(sessionId) : null;
+        if (internal && !internal.hasBet) {
+          const client = this.getClientForSeat(seat);
+          if (client) {
+            client.send('place-your-bet', {
+              minBet: this.state.minBet,
+              maxBet: this.state.maxBet,
+            });
+          }
         }
       }
     }
+
+    // If all players are already bet (e.g., all auto-skipped), deal immediately
+    this.checkAllBetsPlaced();
   }
 
   private handlePlaceBet(client: Client, data: { amount: number }) {
@@ -380,8 +454,10 @@ export class BlackjackRoom extends Room<GameState> {
   private checkAllBetsPlaced() {
     const occupied = this.getOccupiedSeats();
     const allBet = occupied.every((seat) => {
-      const sessionId = this.seatToSession.get(seat)!;
-      const internal = this.internalState.get(sessionId)!;
+      const sessionId = this.seatToSession.get(seat);
+      if (!sessionId) return true;
+      const internal = this.internalState.get(sessionId);
+      if (!internal) return true;
       return internal.hasBet;
     });
 
@@ -402,10 +478,12 @@ export class BlackjackRoom extends Room<GameState> {
 
     const occupied = this.getOccupiedSeats();
 
-    // Deduct bets and create hands
+    // Deduct bets and create hands (skip players with $0 bet who sat out)
     for (const seat of occupied) {
-      const sessionId = this.seatToSession.get(seat)!;
-      const internal = this.internalState.get(sessionId)!;
+      const sessionId = this.seatToSession.get(seat);
+      if (!sessionId) continue;
+      const internal = this.internalState.get(sessionId);
+      if (!internal || internal.currentBet === 0) continue;
       internal.bankroll -= internal.currentBet;
       internal.hands = [{
         cards: [],
@@ -418,37 +496,48 @@ export class BlackjackRoom extends Room<GameState> {
       }];
     }
 
-    // Deal cards one at a time with delays
-    this.dealCardSequence(occupied, 0);
+    // Deal cards one at a time with delays (only to players who placed a bet)
+    const activePlayers = occupied.filter((seat) => {
+      const sessionId = this.seatToSession.get(seat);
+      if (!sessionId) return false;
+      const internal = this.internalState.get(sessionId);
+      return internal && internal.currentBet > 0;
+    });
+    this.dealCardSequence(activePlayers, 0);
   }
 
   private dealCardSequence(occupied: number[], cardIndex: number) {
     if (!this.deck) return;
 
-    // cardIndex 0 = first card to each player, 1 = second card to each player
-    // cardIndex 2 = dealer first card, 3 = dealer second card
-
     if (cardIndex < 2) {
-      // Deal to players
+      // Deal to players (burn card for disconnected players to preserve order)
       for (const seat of occupied) {
         const sessionId = this.seatToSession.get(seat);
-        if (!sessionId) continue; // Player disconnected mid-deal
-        const internal = this.internalState.get(sessionId);
-        if (!internal || internal.hands.length === 0) continue;
-        const hand = internal.hands[0];
-        const result = drawCard(this.deck!);
-        if (result) {
-          this.deck = result.deck;
-          hand.cards.push(result.card);
+        const internal = sessionId ? this.internalState.get(sessionId) : null;
+
+        let result = drawCard(this.deck!);
+        if (!result) {
+          this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+          result = drawCard(this.deck!);
         }
-        this.syncPlayerState(sessionId);
+        if (!result) continue;
+        this.deck = result.deck;
+
+        if (internal && internal.hands.length > 0) {
+          internal.hands[0].cards.push(result.card);
+          if (sessionId) this.syncPlayerState(sessionId);
+        }
       }
       this.syncAllPlayers();
 
       setTimeout(() => this.dealCardSequence(occupied, cardIndex + 1), 600);
     } else if (cardIndex === 2) {
       // Dealer first card (face up)
-      const result = drawCard(this.deck!);
+      let result = drawCard(this.deck!);
+      if (!result) {
+        this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+        result = drawCard(this.deck!);
+      }
       if (result) {
         this.deck = result.deck;
         this.dealerCards.push(result.card);
@@ -459,7 +548,11 @@ export class BlackjackRoom extends Room<GameState> {
       setTimeout(() => this.dealCardSequence(occupied, cardIndex + 1), 600);
     } else if (cardIndex === 3) {
       // Dealer second card (face down)
-      const result = drawCard(this.deck!);
+      let result = drawCard(this.deck!);
+      if (!result) {
+        this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+        result = drawCard(this.deck!);
+      }
       if (result) {
         this.deck = result.deck;
         this.dealerCards.push(result.card);
@@ -467,7 +560,6 @@ export class BlackjackRoom extends Room<GameState> {
       this.syncDealerCards(false);
       this.syncAllPlayers();
 
-      // After dealing is complete, check for blackjacks
       setTimeout(() => this.afterDeal(occupied), 800);
     }
   }
@@ -493,7 +585,6 @@ export class BlackjackRoom extends Room<GameState> {
     const dealerVal = handValue(this.dealerCards);
 
     if (dealerVal.isBlackjack) {
-      // Reveal dealer blackjack, settle
       this.syncDealerCards(true);
       this.syncAllPlayers();
       setTimeout(() => this.settleRound(), 1000);
@@ -523,64 +614,76 @@ export class BlackjackRoom extends Room<GameState> {
   // ---------------------------------------------------------------------------
 
   private startNextPlayerTurn() {
+    this.clearTurnTimer();
+
     const occupied = this.getOccupiedSeats();
 
-    // Find next seat that still has a playing hand
-    while (true) {
-      // Find the first seat with an active hand
-      let found = false;
-      for (const seat of occupied) {
-        const sessionId = this.seatToSession.get(seat)!;
-        const internal = this.internalState.get(sessionId)!;
+    for (const seat of occupied) {
+      const sessionId = this.seatToSession.get(seat);
+      if (!sessionId) continue;
+      const internal = this.internalState.get(sessionId);
+      if (!internal) continue;
 
-        for (let hi = 0; hi < internal.hands.length; hi++) {
-          const hand = internal.hands[hi];
-          if (hand.status === 'playing') {
-            this.activeSeat = seat;
-            this.activeHandIndex = hi;
+      for (let hi = 0; hi < internal.hands.length; hi++) {
+        const hand = internal.hands[hi];
+        if (hand.status === 'playing') {
+          this.activeSeat = seat;
+          this.activeHandIndex = hi;
 
-            const availableBankroll = this.getAvailableBankroll(internal, hi);
-            const phase: GamePhase = {
-              type: 'PLAYER_TURN',
-              activeSeat: seat,
-              handIndex: hi,
-              canHit: canHit(hand),
-              canStand: true,
-              canDouble: canDouble(hand, availableBankroll),
-              canSplit: canSplit(hand, availableBankroll),
-              canSurrender: canSurrender(hand),
-            };
-            this.setPhase(phase);
-            this.syncAllPlayers();
+          const availableBankroll = this.getAvailableBankroll(internal, hi);
+          const phase: GamePhase = {
+            type: 'PLAYER_TURN',
+            activeSeat: seat,
+            handIndex: hi,
+            canHit: canHit(hand),
+            canStand: true,
+            canDouble: canDouble(hand, availableBankroll),
+            canSplit: canSplit(hand, availableBankroll),
+            canSurrender: canSurrender(hand),
+          };
+          this.setPhase(phase);
+          this.syncAllPlayers();
 
-            if (this.isBot(seat)) {
-              this.scheduleBotAction(seat);
-            } else {
-              const client = this.getClientForSeat(seat);
-              if (client) {
-                client.send('your-turn', {
-                  seat,
-                  handIndex: hi,
-                  canHit: canHit(hand),
-                  canStand: true,
-                  canDouble: canDouble(hand, availableBankroll),
-                  canSplit: canSplit(hand, availableBankroll),
-                  canSurrender: canSurrender(hand),
-                });
-              }
+          if (this.isBot(seat)) {
+            this.scheduleBotAction(seat);
+          } else {
+            const client = this.getClientForSeat(seat);
+            if (client) {
+              client.send('your-turn', {
+                seat,
+                handIndex: hi,
+                canHit: canHit(hand),
+                canStand: true,
+                canDouble: canDouble(hand, availableBankroll),
+                canSplit: canSplit(hand, availableBankroll),
+                canSurrender: canSurrender(hand),
+              });
+              // Auto-stand after 30 seconds
+              this.turnTimer = setTimeout(() => {
+                if (this.gamePhase.type === 'PLAYER_TURN' && this.activeSeat === seat) {
+                  const sId = this.seatToSession.get(seat);
+                  const intState = sId ? this.internalState.get(sId) : null;
+                  if (intState && intState.hands[hi]?.status === 'playing') {
+                    intState.hands[hi].status = 'standing';
+                    this.advanceHandOrNextPlayer(seat, sId!);
+                  }
+                }
+              }, 30000);
             }
-            found = true;
-            break;
           }
+          return;
         }
-        if (found) break;
       }
+    }
 
-      if (found) break;
+    // No more playing hands — move to dealer turn
+    this.startDealerTurn();
+  }
 
-      // No more playing hands — move to dealer turn
-      this.startDealerTurn();
-      return;
+  private clearTurnTimer() {
+    if (this.turnTimer) {
+      clearTimeout(this.turnTimer);
+      this.turnTimer = null;
     }
   }
 
@@ -597,6 +700,7 @@ export class BlackjackRoom extends Room<GameState> {
     const hand = internal.hands[this.activeHandIndex];
     if (!hand || hand.status !== 'playing') return;
 
+    this.clearTurnTimer();
     this.executeAction(seat, sessionId, this.activeHandIndex, data.action);
   }
 
@@ -607,7 +711,12 @@ export class BlackjackRoom extends Room<GameState> {
 
     switch (action) {
       case 'HIT': {
-        const result = drawCard(this.deck!);
+        if (!this.deck) return;
+        let result = drawCard(this.deck);
+        if (!result) {
+          this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+          result = drawCard(this.deck!);
+        }
         if (result) {
           this.deck = result.deck;
           hand.cards.push(result.card);
@@ -622,7 +731,6 @@ export class BlackjackRoom extends Room<GameState> {
         this.syncAllPlayers();
 
         if (hand.status === 'playing') {
-          // Player can act again
           const availableBankroll = this.getAvailableBankroll(internal, handIndex);
           const phase: GamePhase = {
             type: 'PLAYER_TURN',
@@ -631,7 +739,7 @@ export class BlackjackRoom extends Room<GameState> {
             canHit: canHit(hand),
             canStand: true,
             canDouble: canDouble(hand, availableBankroll),
-            canSplit: false, // Can't split after hitting
+            canSplit: false,
             canSurrender: false,
           };
           this.setPhase(phase);
@@ -653,7 +761,6 @@ export class BlackjackRoom extends Room<GameState> {
             }
           }
         } else {
-          // Hand is done (bust or 21)
           this.advanceHandOrNextPlayer(seat, sessionId);
         }
         break;
@@ -668,11 +775,15 @@ export class BlackjackRoom extends Room<GameState> {
 
       case 'DOUBLE': {
         if (!canDouble(hand, this.getAvailableBankroll(internal, handIndex))) return;
-        // Deduct the extra bet for doubling
+        if (!this.deck) return;
         internal.bankroll -= hand.bet;
         hand.bet *= 2;
         hand.isDoubled = true;
-        const result = drawCard(this.deck!);
+        let result = drawCard(this.deck);
+        if (!result) {
+          this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+          result = drawCard(this.deck!);
+        }
         if (result) {
           this.deck = result.deck;
           hand.cards.push(result.card);
@@ -686,14 +797,13 @@ export class BlackjackRoom extends Room<GameState> {
 
       case 'SPLIT': {
         if (!canSplit(hand, internal.bankroll)) return;
+        if (!this.deck) return;
 
         const card1 = hand.cards[0];
         const card2 = hand.cards[1];
 
-        // Deduct the extra bet for the split hand from bankroll
         internal.bankroll -= hand.bet;
 
-        // Create two new hands
         const hand1: InternalHand = {
           cards: [card1],
           bet: hand.bet,
@@ -713,8 +823,11 @@ export class BlackjackRoom extends Room<GameState> {
           payout: 0,
         };
 
-        // Draw one card for each hand
-        const r1 = drawCard(this.deck!);
+        let r1 = drawCard(this.deck);
+        if (!r1) {
+          this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+          r1 = drawCard(this.deck!);
+        }
         if (r1) {
           this.deck = r1.deck;
           hand1.cards.push(r1.card);
@@ -723,7 +836,11 @@ export class BlackjackRoom extends Room<GameState> {
           else if (v1.isBust) hand1.status = 'bust';
         }
 
-        const r2 = drawCard(this.deck!);
+        let r2 = drawCard(this.deck!);
+        if (!r2) {
+          this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+          r2 = drawCard(this.deck!);
+        }
         if (r2) {
           this.deck = r2.deck;
           hand2.cards.push(r2.card);
@@ -736,7 +853,6 @@ export class BlackjackRoom extends Room<GameState> {
         this.syncPlayerState(sessionId);
         this.syncAllPlayers();
 
-        // Play first hand
         this.activeHandIndex = 0;
         if (hand1.status === 'playing') {
           const availableBankroll = this.getAvailableBankroll(internal, 0);
@@ -818,9 +934,12 @@ export class BlackjackRoom extends Room<GameState> {
   }
 
   private advanceHandOrNextPlayer(seat: number, sessionId: string) {
-    const internal = this.internalState.get(sessionId)!;
+    const internal = this.internalState.get(sessionId);
+    if (!internal) {
+      this.startNextPlayerTurn();
+      return;
+    }
 
-    // Check if there's another hand to play (from split)
     const nextHandIndex = this.activeHandIndex + 1;
     if (nextHandIndex < internal.hands.length) {
       const nextHand = internal.hands[nextHandIndex];
@@ -860,7 +979,6 @@ export class BlackjackRoom extends Room<GameState> {
       }
     }
 
-    // Move to next player
     this.startNextPlayerTurn();
   }
 
@@ -869,31 +987,31 @@ export class BlackjackRoom extends Room<GameState> {
   // ---------------------------------------------------------------------------
 
   private startDealerTurn() {
+    this.clearTurnTimer();
+    this.activeSeat = -1;
     const phase: GamePhase = { type: 'DEALER_TURN' };
     this.setPhase(phase);
 
-    // Reveal dealer hole card with a delay
     setTimeout(() => {
       this.syncDealerCards(true);
       this.syncAllPlayers();
 
-      // Check if any player has a non-bust hand (dealer only plays if needed)
       const occupied = this.getOccupiedSeats();
       const anyActiveHand = occupied.some((seat) => {
-        const sessionId = this.seatToSession.get(seat)!;
-        const internal = this.internalState.get(sessionId)!;
+        const sessionId = this.seatToSession.get(seat);
+        if (!sessionId) return false;
+        const internal = this.internalState.get(sessionId);
+        if (!internal) return false;
         return internal.hands.some((h) =>
           h.status === 'standing' || h.status === 'blackjack'
         );
       });
 
       if (!anyActiveHand) {
-        // All players busted or surrendered — skip dealer play
         setTimeout(() => this.settleRound(), 800);
         return;
       }
 
-      // Start drawing with delays
       setTimeout(() => this.dealerDrawLoop(), 800);
     }, 800);
   }
@@ -903,13 +1021,16 @@ export class BlackjackRoom extends Room<GameState> {
 
     const dealerVal = handValue(this.dealerCards);
 
-    // Dealer stands on 17 or higher (including soft 17 in most casinos)
     if (dealerVal.soft >= 17) {
       setTimeout(() => this.settleRound(), 800);
       return;
     }
 
-    const result = drawCard(this.deck);
+    let result = drawCard(this.deck);
+    if (!result) {
+      this.deck = shuffleDeck(createDeck(this.state.numDecks), `${this.roomId}-${Date.now()}`);
+      result = drawCard(this.deck!);
+    }
     if (result) {
       this.deck = result.deck;
       this.dealerCards.push(result.card);
@@ -917,7 +1038,6 @@ export class BlackjackRoom extends Room<GameState> {
       this.syncAllPlayers();
     }
 
-    // Continue drawing with delay
     setTimeout(() => this.dealerDrawLoop(), 800);
   }
 
@@ -939,8 +1059,10 @@ export class BlackjackRoom extends Room<GameState> {
     const results: Array<{ seat: number; handIndex: number; payout: number; status: string }> = [];
 
     for (const seat of occupied) {
-      const sessionId = this.seatToSession.get(seat)!;
-      const internal = this.internalState.get(sessionId)!;
+      const sessionId = this.seatToSession.get(seat);
+      if (!sessionId) continue;
+      const internal = this.internalState.get(sessionId);
+      if (!internal) continue;
 
       for (let hi = 0; hi < internal.hands.length; hi++) {
         const hand = internal.hands[hi];
@@ -948,7 +1070,6 @@ export class BlackjackRoom extends Room<GameState> {
         internal.hands[hi] = settled;
         internal.bankroll += settled.payout;
 
-        // Net profit: payout minus the bet that was already deducted
         const netProfit = settled.payout - hand.bet;
         results.push({
           seat,
@@ -961,10 +1082,9 @@ export class BlackjackRoom extends Room<GameState> {
       this.syncPlayerState(sessionId);
     }
 
-    // Build round result summary
     const resultSummary = results.map((r) => {
-      const sessionId = this.seatToSession.get(r.seat)!;
-      const player = this.state.players.get(sessionId);
+      const sessionId = this.seatToSession.get(r.seat);
+      const player = sessionId ? this.state.players.get(sessionId) : undefined;
       return {
         seat: r.seat,
         name: player?.displayName ?? 'Player',
@@ -983,7 +1103,6 @@ export class BlackjackRoom extends Room<GameState> {
 
     this.syncAllPlayers();
 
-    // Broadcast result with updated bankrolls
     const bankrolls: Record<string, number> = {};
     for (const [sessionId, internal] of this.internalState) {
       bankrolls[sessionId] = internal.bankroll;
@@ -996,12 +1115,10 @@ export class BlackjackRoom extends Room<GameState> {
       bankrolls,
     });
 
-    // Move to round end after a short delay
     setTimeout(() => {
       const endPhase: GamePhase = { type: 'ROUND_END' };
       this.setPhase(endPhase);
 
-      // Re-ready all players for the next round
       for (const [sessionId] of this.internalState) {
         const player = this.state.players.get(sessionId);
         if (player) {
@@ -1032,8 +1149,10 @@ export class BlackjackRoom extends Room<GameState> {
     if (this.gamePhase.type !== 'PLAYER_TURN') return;
     if (seat !== this.activeSeat) return;
 
-    const sessionId = this.seatToSession.get(seat)!;
-    const internal = this.internalState.get(sessionId)!;
+    const sessionId = this.seatToSession.get(seat);
+    if (!sessionId) return;
+    const internal = this.internalState.get(sessionId);
+    if (!internal) return;
     const hand = internal.hands[this.activeHandIndex];
     if (!hand || hand.status !== 'playing') return;
 
@@ -1042,7 +1161,6 @@ export class BlackjackRoom extends Room<GameState> {
     const dealerUpCard = this.dealerCards[0];
     const dealerUpValue = dealerUpCard ? handValue([dealerUpCard]).soft : 0;
 
-    // Simple basic strategy
     let action: PlayerAction = 'STAND';
 
     if (points <= 11) {
@@ -1050,7 +1168,6 @@ export class BlackjackRoom extends Room<GameState> {
     } else if (points >= 17) {
       action = 'STAND';
     } else if (points >= 13 && points <= 16) {
-      // Stand if dealer shows 2-6, otherwise hit
       action = (dealerUpValue >= 2 && dealerUpValue <= 6) ? 'STAND' : 'HIT';
     } else if (points === 12) {
       action = (dealerUpValue >= 4 && dealerUpValue <= 6) ? 'STAND' : 'HIT';

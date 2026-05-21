@@ -1,5 +1,6 @@
 export type GamePhaseType =
   | 'LOBBY'
+  | 'SHUFFLING'
   | 'BETTING'
   | 'DEALING'
   | 'PLAYER_TURN'
@@ -8,6 +9,7 @@ export type GamePhaseType =
   | 'ROUND_END';
 
 export interface LobbyPhase { type: 'LOBBY' }
+export interface ShufflingPhase { type: 'SHUFFLING' }
 export interface BettingPhase { type: 'BETTING' }
 export interface DealingPhase { type: 'DEALING' }
 export interface PlayerTurnPhase {
@@ -26,6 +28,7 @@ export interface RoundEndPhase { type: 'ROUND_END' }
 
 export type GamePhase =
   | LobbyPhase
+  | ShufflingPhase
   | BettingPhase
   | DealingPhase
   | PlayerTurnPhase
@@ -34,13 +37,14 @@ export type GamePhase =
   | RoundEndPhase;
 
 const VALID_TRANSITIONS: Record<GamePhaseType, GamePhaseType[]> = {
-  LOBBY: ['BETTING'],
+  LOBBY: ['BETTING', 'SHUFFLING'],
+  SHUFFLING: ['BETTING'],
   BETTING: ['DEALING'],
   DEALING: ['PLAYER_TURN', 'DEALER_TURN', 'SETTLEMENT'],
   PLAYER_TURN: ['PLAYER_TURN', 'DEALER_TURN', 'SETTLEMENT'],
   DEALER_TURN: ['SETTLEMENT'],
   SETTLEMENT: ['ROUND_END'],
-  ROUND_END: ['BETTING', 'LOBBY'],
+  ROUND_END: ['BETTING', 'SHUFFLING'],
 };
 
 export function canTransition(from: GamePhase, to: GamePhase): boolean {

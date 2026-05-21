@@ -50,7 +50,7 @@ export class GameState extends Schema {
   // Game state
   @type('uint8') activeSeat: number = 255;
   @type('uint8') activeHandIndex: number = 0;
-  @type('uint8') numDecks: number = 6;
+  @type('uint8') numDecks: number = 2;
   @type('uint32') minBet: number = 10;
   @type('uint32') maxBet: number = 500;
 
