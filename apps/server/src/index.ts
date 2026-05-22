@@ -15,6 +15,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { MahjongRoom } from './rooms/MahjongRoom.js';
 import { BlackjackRoom } from './rooms/BlackjackRoom.js';
+import { RouletteRoom } from './rooms/RouletteRoom.js';
 import { RoomCodeService } from './services/RoomCodeService.js';
 
 // Access the local rooms map from matchMaker for real-time data
@@ -27,13 +28,16 @@ app.use(express.json());
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const mahjongDist = path.resolve(__dirname, '../../web/dist');
 const blackjackDist = path.resolve(__dirname, '../blackjack-dist');
+const rouletteDist = path.resolve(__dirname, '../roulette-dist');
 
 // Serve frontend builds based on host header.
 // Each game gets its own subdomain (e.g. blackjack.jayryuki.com).
 // To add a new game: add a dist path variable above and a host.includes() branch here.
 app.use((req, res, next) => {
   const host = req.hostname || req.headers.host || '';
-  if (host.includes('blackjack')) {
+  if (host.includes('roulette')) {
+    express.static(rouletteDist)(req, res, next);
+  } else if (host.includes('blackjack')) {
     express.static(blackjackDist)(req, res, next);
   } else {
     // Default: serve mahjong frontend
@@ -52,6 +56,7 @@ const gameServer = new Server({ transport });
 // To add a new game: gameServer.define('poker', PokerRoom);
 gameServer.define('mahjong', MahjongRoom);
 gameServer.define('blackjack', BlackjackRoom);
+gameServer.define('roulette', RouletteRoom);
 
 const roomCodeService = new RoomCodeService();
 
@@ -59,7 +64,9 @@ app.post('/api/rooms', async (req, res) => {
   const { displayName, preset, game } = req.body;
   // Map the 'game' field from the client to a Colyseus room type string.
   // To add a new game: add a mapping here, e.g. game === 'poker' ? 'poker' : ...
-  const gameType = game === 'blackjack' ? 'blackjack' : 'mahjong';
+  const gameType = game === 'blackjack' ? 'blackjack'
+               : game === 'roulette' ? 'roulette'
+               : 'mahjong';
   const roomCode = roomCodeService.generateCode();
   const hostPlayerId = `player-${Date.now()}`;
 
@@ -150,11 +157,13 @@ app.get('/api/rooms/:code', (req, res) => {
 // To add a new game: add its dist to the host→dist mapping below.
 app.get('*', (req, res) => {
   const host = req.hostname || req.headers.host || '';
-  const dist = host.includes('blackjack') ? blackjackDist : mahjongDist;
+  const dist = host.includes('roulette') ? rouletteDist
+             : host.includes('blackjack') ? blackjackDist
+             : mahjongDist;
   res.sendFile(path.join(dist, 'index.html'));
 });
 
 const PORT: number = parseInt(process.env.PORT || '2500', 10);
 gameServer.listen(PORT).then(() => {
-  console.log(`Game server running on port ${PORT} (mahjong + blackjack)`);
+  console.log(`Game server running on port ${PORT} (mahjong + blackjack + roulette)`);
 });
