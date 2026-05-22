@@ -1,3 +1,14 @@
+/**
+ * RoomCodeService — Maps human-readable room codes to Colyseus room IDs + game types.
+ *
+ * When a room is created via POST /api/rooms, we generate a short code (e.g. "UNQEUT")
+ * and store { roomId, game } against it. Clients then use the code to join — the server
+ * looks up the real roomId before the client calls colyseusClient.joinById().
+ *
+ * This service is game-agnostic. The 'game' field is just a string tag that gets
+ * stored and returned; no changes needed here when adding new game types.
+ */
+
 const CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'.split('');
 const CODE_LENGTH = 6;
 

@@ -1,3 +1,32 @@
+/**
+ * BlackjackRoom — Colyseus Room implementation for multiplayer Blackjack.
+ *
+ * ARCHITECTURE OVERVIEW:
+ *   This room uses a "dual state" pattern common in Colyseus games:
+ *
+ *   1. SYNCED STATE (this.state: GameState) — A Colyseus Schema object that is
+ *      automatically synced to all clients. Only put data here that players
+ *      should see. Keep it minimal — every change triggers network patches.
+ *
+ *   2. INTERNAL STATE (private fields like internalState, deck, dealerCards) —
+ *      Server-authoritative data that is NOT synced. The deck, hidden dealer
+ *      cards, and unconfirmed bets live here. We manually copy relevant parts
+ *      to the synced state via syncPlayerState() / syncDealerCards().
+ *
+ *   KEY LIFECYCLE:
+ *     onCreate()  — Set up schema, register message handlers
+ *     onJoin()    — Add player to schema + internal state, assign seat
+ *     onLeave()   — Remove player, transfer host if needed, advance game
+ *     onDispose() — Clean up timers
+ *
+ *   TO CREATE A NEW GAME ROOM:
+ *     1. Create a Schema in schema/YourGameState.ts (extends Schema, @type decorators)
+ *     2. Create YourRoom.ts extending Room<YourGameState>
+ *     3. Implement onCreate/onJoin/onLeave/onDispose
+ *     4. Register in index.ts: gameServer.define('yourgame', YourRoom)
+ *     5. Import your game-core package for logic (see @blackjack/game-core)
+ */
+
 import { Room, Client } from '@colyseus/core';
 import { GameState, PlayerSchema, HandSchema, CardSchema, ChatMessageSchema } from './schema/BlackjackGameState.js';
 import {
