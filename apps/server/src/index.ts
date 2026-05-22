@@ -135,8 +135,8 @@ app.get('/api/rooms', async (req, res) => {
       game,
       hostName: '',
       playerCount: 0,
-      maxPlayers: game === 'blackjack' ? 7 : 4,
-      openSlots: game === 'blackjack' ? 7 : 4,
+      maxPlayers: game === 'blackjack' ? 7 : game === 'roulette' ? 8 : 4,
+      openSlots: game === 'blackjack' ? 7 : game === 'roulette' ? 8 : 4,
       status: 'lobby',
     }));
     res.json(fallback);

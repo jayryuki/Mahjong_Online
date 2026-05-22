@@ -95,6 +95,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
       if (data.maxBet !== undefined && data.maxBet <= 10000) this.state.maxBet = data.maxBet;
       if (data.maxPlayers !== undefined && data.maxPlayers >= 2 && data.maxPlayers <= 8) {
         this.state.maxPlayers = data.maxPlayers;
+        this.maxClients = data.maxPlayers;
       }
       if (data.betTime !== undefined && data.betTime >= 10 && data.betTime <= 120) {
         this.state.betTime = data.betTime;
@@ -234,6 +235,15 @@ export class RouletteRoom extends Room<RouletteGameState> {
     if (players.length < 1) return;
     const allSeated = players.every(p => this.sessionToSeat.has(p.playerId));
     if (!allSeated) return;
+
+    // In LOBBY, require all players to be ready.
+    // In ROUND_END, auto-ready everyone (they already chose to stay).
+    if (this.currentPhase === 'ROUND_END') {
+      for (const p of players) {
+        p.isReady = true;
+      }
+    }
+
     const allReady = players.every(p => p.isReady);
     if (!allReady) return;
 
