@@ -14,7 +14,6 @@ import {
   calculateNetProfit,
   CHIP_COUNT,
 } from '@roulette/game-core';
-import type { PhaseType } from '@roulette/game-core';
 
 interface InternalPlayer {
   bankroll: number;
@@ -29,40 +28,19 @@ export class RouletteRoom extends Room<RouletteGameState> {
   private seatToSession = new Map<number, string>();
   private betTimer: NodeJS.Timeout | null = null;
   private phaseTimer: NodeJS.Timeout | null = null;
-  private currentPhase: PhaseType = 'LOBBY';
+  private phase: string = 'BETTING';
 
   onCreate(options: { preset?: string; hostPlayerId: string; roomCode: string }) {
     this.setState(new RouletteGameState());
     this.state.roomId = this.roomId;
     this.state.roomCode = options.roomCode;
     this.state.hostPlayerId = options.hostPlayerId;
-    this.state.status = 'lobby';
-    this.state.phase = 'LOBBY';
+    this.state.status = 'in-progress';
+    this.state.phase = 'BETTING';
     this.state.minBet = 1;
     this.state.maxBet = 1000;
     this.state.betTime = 30;
     this.state.maxPlayers = 8;
-
-    // --- Lobby messages ---
-    this.onMessage('choose-seat', (client, data: { seatIndex: number }) => {
-      this.handleChooseSeat(client, data);
-    });
-
-    this.onMessage('swap-color', (client, data: { targetIndex: number }) => {
-      this.handleSwapColor(client, data);
-    });
-
-    this.onMessage('toggle-ready', (client) => {
-      const player = this.state.players.get(client.sessionId);
-      if (player) player.isReady = !player.isReady;
-    });
-
-    this.onMessage('start-round', (client) => {
-      const player = this.state.players.get(client.sessionId);
-      if (!player || !player.isHost) return;
-      if (this.currentPhase !== 'LOBBY' && this.currentPhase !== 'ROUND_END') return;
-      this.startBettingPhase();
-    });
 
     // --- Betting messages ---
     this.onMessage('place-bet', (client, data: { betType: string; amount: number }) => {
@@ -78,9 +56,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
     });
 
     this.onMessage('spin-now', (client) => {
-      const player = this.state.players.get(client.sessionId);
-      if (!player || !player.isHost) return;
-      if (this.currentPhase !== 'BETTING') return;
+      if (this.phase !== 'BETTING') return;
       this.closeBetting();
     });
 
@@ -90,7 +66,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
     }) => {
       const player = this.state.players.get(client.sessionId);
       if (!player || !player.isHost) return;
-      if (this.currentPhase !== 'LOBBY') return;
+      if (this.phase !== 'BETTING') return;
       if (data.minBet !== undefined && data.minBet >= 1) this.state.minBet = data.minBet;
       if (data.maxBet !== undefined && data.maxBet <= 10000) this.state.maxBet = data.maxBet;
       if (data.maxPlayers !== undefined && data.maxPlayers >= 2 && data.maxPlayers <= 8) {
@@ -119,6 +95,17 @@ export class RouletteRoom extends Room<RouletteGameState> {
       }
     });
 
+    // --- Swap color ---
+    this.onMessage('swap-color', (client, data: { targetIndex: number }) => {
+      if (data.targetIndex < 0 || data.targetIndex >= CHIP_COUNT) return;
+      const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+      for (const [, p] of this.state.players) {
+        if (p.playerId !== client.sessionId && p.chipColor === data.targetIndex) return;
+      }
+      player.chipColor = data.targetIndex;
+    });
+
     // --- Kick ---
     this.onMessage('kick-player', (client, data: { targetId: string }) => {
       const player = this.state.players.get(client.sessionId);
@@ -127,6 +114,10 @@ export class RouletteRoom extends Room<RouletteGameState> {
       const target = this.clients.find(c => c.sessionId === data.targetId);
       if (target) target.leave(4001, 'Kicked by host');
     });
+
+    // Auto-start the first betting round after a short delay
+    // (gives the creator a moment to connect)
+    this.phaseTimer = setTimeout(() => this.startBettingPhase(), 1500);
   }
 
   // ---------------------------------------------------------------------------
@@ -139,6 +130,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
     player.displayName = options.displayName || 'Player';
     player.isConnected = true;
     player.isHost = this.state.players.size === 0;
+    player.isReady = true;
 
     // Auto-assign seat
     const occupiedSeats = new Set(this.sessionToSeat.values());
@@ -165,8 +157,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
     });
   }
 
-  onLeave(client: Client) {
-    this.clearPhaseTimer();
+  onLeave(client: Client, consented: boolean) {
     const seat = this.sessionToSeat.get(client.sessionId);
     if (seat !== undefined) this.seatToSession.delete(seat);
     this.sessionToSeat.delete(client.sessionId);
@@ -184,6 +175,12 @@ export class RouletteRoom extends Room<RouletteGameState> {
 
     // Remove this player's chips from the table
     this.removePlayerChips(client.sessionId);
+
+    // If room is empty, clean up timers but keep room alive for reconnection window
+    if (this.state.players.size === 0) {
+      this.clearBetTimer();
+      // Don't clear phaseTimer — keep the room alive so next join resumes
+    }
   }
 
   onDispose() {
@@ -192,66 +189,18 @@ export class RouletteRoom extends Room<RouletteGameState> {
   }
 
   // ---------------------------------------------------------------------------
-  // Lobby handlers
-  // ---------------------------------------------------------------------------
-
-  private handleChooseSeat(client: Client, data: { seatIndex: number }) {
-    const idx = data.seatIndex;
-    if (idx < 0 || idx >= this.maxClients) return;
-    const existing = this.seatToSession.get(idx);
-    if (existing && existing !== client.sessionId) return;
-
-    const oldSeat = this.sessionToSeat.get(client.sessionId);
-    if (oldSeat !== undefined) this.seatToSession.delete(oldSeat);
-
-    this.sessionToSeat.set(client.sessionId, idx);
-    this.seatToSession.set(idx, client.sessionId);
-
-    const player = this.state.players.get(client.sessionId);
-    if (player) player.seatIndex = idx;
-  }
-
-  private handleSwapColor(client: Client, data: { targetIndex: number }) {
-    if (data.targetIndex < 0 || data.targetIndex >= CHIP_COUNT) return;
-    const player = this.state.players.get(client.sessionId);
-    if (!player) return;
-
-    // Check if target color is taken by someone else
-    for (const [, p] of this.state.players) {
-      if (p.playerId !== client.sessionId && p.chipColor === data.targetIndex) return;
-    }
-
-    player.chipColor = data.targetIndex;
-  }
-
-  // ---------------------------------------------------------------------------
   // Betting phase
   // ---------------------------------------------------------------------------
 
   private startBettingPhase() {
     this.clearPhaseTimer();
+    this.clearBetTimer();
 
-    const players = Array.from(this.state.players.values());
-    if (players.length < 1) return;
-    const allSeated = players.every(p => this.sessionToSeat.has(p.playerId));
-    if (!allSeated) return;
-
-    // In LOBBY, require all players to be ready.
-    // In ROUND_END, auto-ready everyone (they already chose to stay).
-    if (this.currentPhase === 'ROUND_END') {
-      for (const p of players) {
-        p.isReady = true;
-      }
-    }
-
-    const allReady = players.every(p => p.isReady);
-    if (!allReady) return;
-
-    this.state.status = 'in-progress';
-    this.currentPhase = 'BETTING';
+    this.phase = 'BETTING';
     this.state.phase = 'BETTING';
+    this.state.status = 'in-progress';
 
-    // Reset round
+    // Reset round state
     this.state.chips.clear();
     this.state.winningNumber = -1;
     this.state.roundResult = '';
@@ -276,7 +225,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
   }
 
   private handlePlaceBet(client: Client, data: { betType: string; amount: number }) {
-    if (this.currentPhase !== 'BETTING') return;
+    if (this.phase !== 'BETTING') return;
 
     const player = this.state.players.get(client.sessionId);
     const internal = this.internalState.get(client.sessionId);
@@ -301,7 +250,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
   }
 
   private handleRemoveBet(client: Client, data: { chipIndex: number }) {
-    if (this.currentPhase !== 'BETTING') return;
+    if (this.phase !== 'BETTING') return;
 
     const chip = this.state.chips[data.chipIndex];
     if (!chip || chip.playerId !== client.sessionId) return;
@@ -317,7 +266,7 @@ export class RouletteRoom extends Room<RouletteGameState> {
   }
 
   private handleClearBets(client: Client) {
-    if (this.currentPhase !== 'BETTING') return;
+    if (this.phase !== 'BETTING') return;
     this.removePlayerChips(client.sessionId);
   }
 
@@ -329,7 +278,6 @@ export class RouletteRoom extends Room<RouletteGameState> {
       player.totalBetThisRound = 0;
     }
 
-    // Remove all chips for this player (iterate backwards since we splice)
     for (let i = this.state.chips.length - 1; i >= 0; i--) {
       if (this.state.chips[i].playerId === sessionId) {
         this.state.chips.splice(i, 1);
@@ -357,14 +305,13 @@ export class RouletteRoom extends Room<RouletteGameState> {
 
   private closeBetting() {
     this.clearBetTimer();
-    this.currentPhase = 'SPINNING';
+    this.clearPhaseTimer();
+    this.phase = 'SPINNING';
     this.state.phase = 'SPINNING';
 
-    // Generate winning number (0-37, 37=00) using crypto
     const winningNumber = this.generateWinningNumber();
     this.state.winningNumber = winningNumber;
 
-    // Track in last results
     this.state.lastResults.push(String(winningNumber));
     while (this.state.lastResults.length > 20) {
       this.state.lastResults.shift();
@@ -372,14 +319,14 @@ export class RouletteRoom extends Room<RouletteGameState> {
 
     this.broadcast('spin-result', { number: winningNumber });
 
-    // After 5 seconds (wheel animation), move to settlement
-    this.phaseTimer = setTimeout(() => this.settleRound(), 5000);
+    // After 4s (wheel animation), settle
+    this.phaseTimer = setTimeout(() => this.settleRound(), 4000);
   }
 
   private generateWinningNumber(): number {
     const array = new Uint32Array(1);
     crypto.getRandomValues(array);
-    return array[0] % 38; // 0-37, 37 = 00
+    return array[0] % 38;
   }
 
   // ---------------------------------------------------------------------------
@@ -388,12 +335,11 @@ export class RouletteRoom extends Room<RouletteGameState> {
 
   private settleRound() {
     this.clearPhaseTimer();
-    this.currentPhase = 'SETTLEMENT';
+    this.phase = 'SETTLEMENT';
     this.state.phase = 'SETTLEMENT';
 
     const winningNumber = this.state.winningNumber;
 
-    // Convert schema chips to plain objects
     const chips = this.state.chips.map(c => ({
       playerId: c.playerId,
       betType: c.betType,
@@ -402,7 +348,6 @@ export class RouletteRoom extends Room<RouletteGameState> {
 
     const results = calculatePayouts(chips, winningNumber);
 
-    // Update bankrolls
     for (const [sessionId, internal] of this.internalState) {
       const netProfit = calculateNetProfit(results, sessionId);
       internal.bankroll += netProfit;
@@ -415,7 +360,6 @@ export class RouletteRoom extends Room<RouletteGameState> {
       }
     }
 
-    // Build result summary for client display
     const resultSummary = results.map(r => {
       const player = this.state.players.get(r.playerId);
       return {
@@ -446,15 +390,9 @@ export class RouletteRoom extends Room<RouletteGameState> {
       bankrolls,
     });
 
-    // After 5s display, move to ROUND_END
+    // After 4s showing results, auto-start next round
     this.phaseTimer = setTimeout(() => {
-      this.currentPhase = 'ROUND_END';
-      this.state.phase = 'ROUND_END';
-
-      // Auto-restart after 10s
-      this.phaseTimer = setTimeout(() => {
-        this.startBettingPhase();
-      }, 10000);
-    }, 5000);
+      this.startBettingPhase();
+    }, 4000);
   }
 }
