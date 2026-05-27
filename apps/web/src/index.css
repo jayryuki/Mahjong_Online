@@ -2,93 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Shared design tokens are imported from @games/ui/tokens.css in main.tsx */
+/* This file contains only mahjong-specific overrides and animations */
+
 @layer base {
-  /* ── Light Theme (default) ── */
   :root {
-    --c-bg: #FAF7F2;
-    --c-bg-raised: #F5F1EA;
-    --c-text: #2B2926;
-    --c-text-secondary: #6B665E;
-    --c-text-muted: #9A958C;
-    --c-accent: #B85C3A;
-    --c-accent-hover: #9A4A2E;
-    --c-border: #E3DDD3;
-    --c-rule: #D9D2C8;
-    --matte-950: #f5f5f7;
-    --matte-900: #e8e8ed;
-    --matte-800: #dcdcde;
-    --matte-700: #d0d0d5;
-    --matte-600: #c4c4ca;
-    --matte-500: #a0a0a8;
-    --matte-400: #6b6b75;
-    --matte-300: #4a4a52;
-    --matte-200: #2c2c30;
-    --matte-100: #121214;
-    --warm-accent: #B85C3A;
-    --warm-accent-dim: #9A4A2E;
-    --surface-app: var(--c-bg);
-    --surface-panel: var(--c-bg-raised);
-    --surface-panel-raised: #ffffff;
+    /* Mahjong-specific overrides */
     --surface-table: var(--matte-950);
-    --text-primary: var(--c-text);
-    --text-secondary: var(--c-text-secondary);
-    --text-muted: var(--c-text-muted);
-    --accent-warm: var(--c-accent);
-    --accent-warm-dim: var(--c-accent-hover);
-    --border-subtle: var(--c-border);
-    --rule-subtle: var(--c-rule);
-    --focus-ring: 0 0 0 2px rgba(184, 92, 58, 0.3);
-    --tile-face-bg: #F5F0E6;
-    --tile-face-border: #D9D2C8;
-    --tile-stroke: #2B2926;
-    --tile-back-bg: var(--matte-700);
-    --seat-active-ring: var(--warm-accent);
-    --danger: #c45a5a;
-    --success: #5a9e6e;
   }
 
-  /* ── Dark Theme ── */
   .dark {
-    --c-bg: #1C1B19;
-    --c-bg-raised: #252320;
-    --c-text: #E8E4DD;
-    --c-text-secondary: #B0AAA0;
-    --c-text-muted: #7A756E;
-    --c-accent: #C97B5C;
-    --c-accent-hover: #D49074;
-    --c-border: #3A3630;
-    --c-rule: #33302C;
-    --matte-950: #0a0a0b;
-    --matte-900: #121214;
-    --matte-800: #1a1a1d;
-    --matte-700: #232326;
-    --matte-600: #2c2c30;
-    --matte-500: #3a3a40;
-    --matte-400: #6b6b75;
-    --matte-300: #9e9ea8;
-    --matte-200: #d1d1d6;
-    --matte-100: #f5f5f7;
-    --warm-accent: #c4a574;
-    --warm-accent-dim: #8a7455;
-    --surface-app: var(--matte-950);
-    --surface-panel: var(--matte-900);
-    --surface-panel-raised: var(--matte-800);
-    --surface-table: var(--matte-950);
-    --text-primary: var(--matte-200);
-    --text-secondary: var(--matte-300);
-    --text-muted: var(--matte-400);
-    --accent-warm: var(--warm-accent);
-    --accent-warm-dim: var(--warm-accent-dim);
-    --border-subtle: rgba(58, 58, 64, 0.3);
-    --rule-subtle: rgba(58, 58, 64, 0.2);
-    --focus-ring: 0 0 0 2px rgba(196, 165, 116, 0.3);
+    /* Mahjong-specific dark overrides for tile rendering */
     --tile-face-bg: #1a1a1d;
     --tile-face-border: #3a3a40;
     --tile-stroke: #ffffff;
-    --tile-back-bg: var(--matte-600);
-    --seat-active-ring: var(--warm-accent);
-    --danger: #c45a5a;
-    --success: #5a9e6e;
   }
 
   body {
