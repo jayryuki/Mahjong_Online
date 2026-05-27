@@ -6,7 +6,7 @@ export function useTheme() {
 
   useEffect(() => {
     const observer = new MutationObserver(() => setThemeState(getTheme()));
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
 

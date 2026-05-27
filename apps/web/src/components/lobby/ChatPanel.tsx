@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ChatMessageData } from '../common/ChatPanel.js';
+import type { ChatMessageData } from '@games/ui';
 
 interface ChatPanelProps {
   messages: ChatMessageData[];

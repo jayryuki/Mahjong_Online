@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/common/Button.js';
-import { ThemeToggle } from '../components/common/ThemeToggle.js';
+import { Button, ThemeToggle } from '@games/ui';
 import { useTheme } from '../hooks/useTheme.js';
-import { ThemeId } from '../lib/theme.js';
 import { getTileImageUrl } from '../lib/tile-theme.js';
 
 const PREVIEW_TILES = [
@@ -38,8 +36,6 @@ export function StartScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
-  const [hoveredTheme, setHoveredTheme] = useState<ThemeId | null>(null);
-  const previewTheme = hoveredTheme ?? theme;
 
   useEffect(() => {
     fetch('/api/rooms?game=mahjong')
@@ -106,7 +102,7 @@ export function StartScreen() {
         {PREVIEW_TILES.map(name => (
           <img
             key={name}
-            src={getTileImageUrl(name, previewTheme)}
+            src={getTileImageUrl(name, theme)}
             alt=""
             width={40}
             height={56}
@@ -138,7 +134,7 @@ export function StartScreen() {
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         <Button size="lg" onClick={handleCreateRoom}>Create Room</Button>
-        <ThemeToggle onThemeHover={setHoveredTheme} />
+        <ThemeToggle />
       </div>
 
       {/* Join by code */}

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@games/ui": "workspace:*",
     "@mahjong/game-core": "workspace:*",
     "@mahjong/ui": "workspace:*",
     "colyseus.js": "^0.16.0",

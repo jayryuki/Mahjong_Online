@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/common/Button.js';
-import { Input } from '../components/common/Input.js';
-import { ThemeToggle } from '../components/common/ThemeToggle.js';
+import { Button, Input, ThemeToggle } from '@games/ui';
 
 export function CreateRoomScreen() {
   const navigate = useNavigate();

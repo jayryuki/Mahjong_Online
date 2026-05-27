@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App.js';
-import { initTheme } from './lib/theme.js';
+import { initTheme } from '@games/ui';
 import './index.css';
 
 initTheme();

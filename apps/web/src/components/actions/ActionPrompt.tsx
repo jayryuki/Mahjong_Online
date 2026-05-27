@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '../common/Button.js';
+import { Button } from '@games/ui';
 import { TileRenderer } from '../common/TileRenderer.js';
 import { useScale } from '../../hooks/useScale.js';
 import { TileDef } from '@mahjong/game-core';
