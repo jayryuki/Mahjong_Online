@@ -34,7 +34,7 @@ packages/poker-game-core/
   tsconfig.json
 ```
 
-Copy `packages/blackjack-game-core` as a template. This package has **zero
+Copy `packages/game-core` as a template. This package has **zero
 Colyseus dependencies** — it's pure game logic (deck management, hand evaluation,
 state machine transitions). The server imports it and uses it inside the Room.
 

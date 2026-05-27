@@ -1,0 +1,21 @@
+- generic [ref=e3]:
+  - heading "Mahjong" [level=1] [ref=e4]
+  - paragraph [ref=e5]: A quiet room for a strategic game.
+  - generic [ref=e6]:
+    - generic [ref=e7]: Name
+    - textbox "Leave blank for a random name" [ref=e8]
+  - generic [ref=e9]:
+    - button "Create Room" [ref=e10] [cursor=pointer]
+    - button "Dark" [ref=e11] [cursor=pointer]
+  - generic [ref=e12]:
+    - textbox "ROOM CODE" [ref=e13]
+    - button "Join" [disabled] [ref=e14] [cursor=pointer]
+  - generic [ref=e15]:
+    - generic [ref=e16]: Active Rooms
+    - 'button "WarmPine78 G96R7J Wall: 68 In Progress" [ref=e17] [cursor=pointer]':
+      - generic [ref=e18]:
+        - generic [ref=e19]: WarmPine78
+        - generic [ref=e20]: G96R7J
+      - generic [ref=e21]:
+        - generic [ref=e22]: "Wall: 68"
+        - generic [ref=e23]: In Progress

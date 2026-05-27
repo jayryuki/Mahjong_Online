@@ -1,0 +1,40 @@
+- generic [ref=e24]:
+  - generic [ref=e27]:
+    - button "Show Grid" [ref=e28] [cursor=pointer]
+    - button "Exit" [ref=e29] [cursor=pointer]
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]: Wind
+      - generic [ref=e33]: East
+    - generic [ref=e34]:
+      - generic [ref=e35]: Hand
+      - generic [ref=e36]: "1"
+    - generic [ref=e37]:
+      - generic [ref=e38]: Honba
+      - generic [ref=e39]: "0"
+    - generic [ref=e40]:
+      - generic [ref=e41]: Wall
+      - generic [ref=e42]: "68"
+  - generic [ref=e43]:
+    - generic [ref=e44]: S
+    - generic [ref=e45]: Bot 2
+    - generic [ref=e46]: "25000"
+    - generic [ref=e47]: "13"
+  - generic [ref=e48]:
+    - generic [ref=e49]: W
+    - generic [ref=e50]: Bot 3
+    - generic [ref=e51]: "25000"
+    - generic [ref=e52]: "13"
+  - generic [ref=e53]:
+    - generic [ref=e54]: "N"
+    - generic [ref=e55]: Bot 4
+    - generic [ref=e56]: "25000"
+    - generic [ref=e57]: "13"
+  - generic [ref=e58]:
+    - generic [ref=e59]: ED
+    - generic [ref=e60]: WarmPine78
+    - generic [ref=e61]: "25000"
+    - generic [ref=e62]: Connecting...
+    - button "Chat" [ref=e64] [cursor=pointer]:
+      - img [ref=e65]
+      - text: Chat
