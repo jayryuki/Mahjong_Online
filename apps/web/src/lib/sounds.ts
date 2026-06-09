@@ -75,3 +75,41 @@ export function playReactionSound() {
     // Audio not available - silent fallback
   }
 }
+
+
+export function playTileSound() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(420, now);
+    osc.frequency.exponentialRampToValueAtTime(820, now + 0.035);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.11, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.13);
+  } catch {}
+}
+
+export function playWinSound() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    [523.25, 659.25, 783.99, 987.77, 1318.5].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = i === 4 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(freq, now + i * 0.075);
+      gain.gain.setValueAtTime(0, now + i * 0.075);
+      gain.gain.linearRampToValueAtTime(0.12, now + i * 0.075 + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.075 + 0.28);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i * 0.075); osc.stop(now + i * 0.075 + 0.3);
+    });
+  } catch {}
+}

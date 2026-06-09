@@ -13,7 +13,7 @@ import { WildCardDisplay } from '../components/table/WildCardDisplay.js';
 import { useScale } from '../hooks/useScale.js';
 import { clearRoom } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
-import { playTurnSound, playReactionSound } from '../lib/sounds.js';
+import { playTurnSound, playReactionSound, playTileSound, playWinSound } from '../lib/sounds.js';
 import { parseTileId } from '../lib/tile-utils.js';
 import type { SeatDisplay } from '../lib/types.js';
 
@@ -304,10 +304,13 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       if (data.endReason === 'exhaustive-draw') {
         setStatusMessage('Exhaustive draw! No one wins this hand.');
       } else if (data.blindKanRon) {
+        playWinSound();
         setStatusMessage(`Hand over! Ron by seat ${data.winner} off blind kan!`);
       } else if (data.winType === 'ron') {
+        playWinSound();
         setStatusMessage(`Hand over! Ron by seat ${data.winner}!`);
       } else {
+        playWinSound();
         setStatusMessage(`Hand over! Tsumo by seat ${data.winner}!`);
       }
     };
@@ -625,7 +628,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       </div>
 
       {/* === ZONE 2: Center board (discard region) === */}
-      <div style={{ flex: '1 1 0%', minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
+      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
         {/* River overlay */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
           <CenterRiver mySeat={mySeat} seats={seatDisplays} />
@@ -677,7 +680,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       </div>
 
       {/* === ZONE 3: Bottom player panel === */}
-      <div style={{
+      <div className={isMyTurn ? 'mj-player-dock mj-player-dock--turn' : 'mj-player-dock'} style={{
         flexShrink: 0,
         background: 'var(--surface-panel)',
         borderTop: isMyTurn ? '3px solid var(--accent-warm)' : '1px solid var(--border-subtle)',
