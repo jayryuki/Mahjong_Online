@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, ThemeToggle } from '@games/ui';
+import { Button, Input } from '@games/ui';
+import { GameShell } from '../components/layout/GameShell.js';
 
 export function JoinRoomScreen() {
   const navigate = useNavigate();
@@ -28,45 +29,33 @@ export function JoinRoomScreen() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', padding: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%', maxWidth: '480px' }}>
-        <Button variant="ghost" onClick={() => navigate('/')}>&larr; Back</Button>
-        <ThemeToggle />
-      </div>
-      <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: '2rem', fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>
-        Join Room
-      </h1>
-      <div style={{ width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Room Code</label>
+    <GameShell
+      gameName="Mahjong Online"
+      title="Join Room"
+      subtitle="Enter the room code, keep the typography readable, and get into the table fast from any device."
+      onBack={() => navigate('/')}
+    >
+      <div className="game-form-grid">
+        <div className="game-field game-field--code game-field--full">
+          <label className="game-field__label">Room Code</label>
           <input
+            className="game-code-input game-code-input--large"
             value={roomCode}
             onChange={(e) => { setRoomCode(e.target.value.toUpperCase()); setError(''); }}
             placeholder="ABC123"
             maxLength={6}
-            style={{
-              padding: '0.75rem 1.5rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--surface-panel)',
-              color: 'var(--text-primary)',
-              fontSize: '1.5rem',
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 600,
-              letterSpacing: '0.2em',
-              textAlign: 'center',
-              textTransform: 'uppercase',
-              outline: 'none',
-              width: '200px',
-            }}
           />
         </div>
-        <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-        {error && <div style={{ color: 'var(--danger)', fontSize: '0.8125rem', textAlign: 'center' }}>{error}</div>}
+        <div className="game-field game-field--full">
+          <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+        </div>
+      </div>
+      {error && <div className="game-error">{error}</div>}
+      <div className="game-shell__actions">
         <Button size="lg" onClick={handleJoin} disabled={!roomCode.trim() || !displayName.trim()} style={{ width: '100%' }}>
           Join Room
         </Button>
       </div>
-    </div>
+    </GameShell>
   );
 }

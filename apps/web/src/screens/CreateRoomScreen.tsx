@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, ThemeToggle } from '@games/ui';
+import { Button, Input } from '@games/ui';
+import { GameShell } from '../components/layout/GameShell.js';
 
 export function CreateRoomScreen() {
   const navigate = useNavigate();
@@ -21,47 +22,42 @@ export function CreateRoomScreen() {
       });
       const data = await res.json();
       navigate(`/lobby/${data.roomCode}?roomId=${data.roomId}&name=${encodeURIComponent(displayName)}`);
-    } catch {
-      // Error handling for Phase 2
-    }
+    } catch {}
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem', padding: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', width: '100%', maxWidth: '480px' }}>
-        <Button variant="ghost" onClick={() => navigate('/')}>&larr; Back</Button>
-        <ThemeToggle />
-      </div>
-      <h1 style={{ fontFamily: "'Newsreader', Georgia, serif", fontSize: '2rem', fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>
-        Create Room
-      </h1>
-      <div style={{ width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Game Variant</span>
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => p.active && setSelectedPreset(p.id)}
-              style={{
-                padding: '1rem',
-                borderRadius: '8px',
-                border: selectedPreset === p.id ? '2px solid var(--accent-warm)' : '1px solid var(--border-subtle)',
-                background: selectedPreset === p.id ? 'var(--surface-panel-raised)' : 'var(--surface-panel)',
-                cursor: p.active ? 'pointer' : 'not-allowed',
-                textAlign: 'left',
-                opacity: p.active ? 1 : 0.5,
-              }}
-            >
-              <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontFamily: "'Inter', sans-serif" }}>{p.name}</div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif" }}>{p.description}</div>
-            </button>
-          ))}
+    <GameShell
+      gameName="Mahjong Online"
+      title="Create Room"
+      subtitle="Set up a room with a compact layout and variant card that still breathes on smaller screens."
+      onBack={() => navigate('/')}
+    >
+      <div className="game-form-grid">
+        <div className="game-field game-field--full">
+          <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
         </div>
+        <div className="game-field game-field--full">
+          <label className="game-field__label">Game Variant</label>
+          <div className="preset-list">
+            {presets.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => p.active && setSelectedPreset(p.id)}
+                className={`preset-card ${selectedPreset === p.id ? 'is-selected' : ''}`}
+                disabled={!p.active}
+              >
+                <div className="preset-card__name">{p.name}</div>
+                <div className="preset-card__description">{p.description}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="game-shell__actions">
         <Button size="lg" onClick={handleCreate} disabled={!displayName.trim()} style={{ width: '100%' }}>
           Create Room
         </Button>
       </div>
-    </div>
+    </GameShell>
   );
 }
