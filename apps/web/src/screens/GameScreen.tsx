@@ -894,7 +894,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
       {/* Hand result overlay */}
       {handResult && (
-        <div style={{
+        <div className={handResult.endReason === 'exhaustive-draw' ? 'mj-result-overlay' : 'mj-result-overlay mj-result-overlay--win'} style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.75)',
@@ -906,7 +906,12 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           zIndex: 100,
           padding: '1rem',
         }}>
-          <div style={{
+          {handResult.endReason !== 'exhaustive-draw' && (
+            <div className="mj-win-confetti" aria-hidden="true">
+              {Array.from({ length: 24 }).map((_, i) => <i key={i} style={{ ['--i' as any]: i }} />)}
+            </div>
+          )}
+          <div className="mj-result-card" style={{
             background: 'var(--surface-panel)',
             borderRadius: '16px',
             padding: '1.5rem',
@@ -1034,7 +1039,12 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           justifyContent: 'center',
           zIndex: 200,
         }}>
-          <div style={{
+          {handResult.endReason !== 'exhaustive-draw' && (
+            <div className="mj-win-confetti" aria-hidden="true">
+              {Array.from({ length: 24 }).map((_, i) => <i key={i} style={{ ['--i' as any]: i }} />)}
+            </div>
+          )}
+          <div className="mj-result-card" style={{
             background: 'var(--surface-panel)',
             borderRadius: '16px',
             padding: '1.5rem',
