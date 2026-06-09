@@ -485,3 +485,82 @@
   .mj-hero-preview { display: flex; gap: 0.5rem; flex-wrap: wrap; }
   .mj-lobby-shell .lobby-panel--chat { min-height: 320px; }
 }
+
+
+@layer components {
+  .mj-shell .game-shell__hero,
+  .mj-shell .game-shell__card,
+  .mj-lobby-shell .lobby-shell__hero,
+  .mj-lobby-shell .lobby-panel,
+  .mj-lobby-shell .lobby-shell__actions {
+    background: rgba(255, 252, 246, 0.88);
+    border-color: rgba(63, 45, 31, 0.12);
+    color: var(--text-primary);
+    box-shadow: 0 16px 44px rgba(71, 45, 26, 0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+
+  .dark .mj-shell .game-shell__hero,
+  .dark .mj-shell .game-shell__card,
+  .dark .mj-lobby-shell .lobby-shell__hero,
+  .dark .mj-lobby-shell .lobby-panel,
+  .dark .mj-lobby-shell .lobby-shell__actions {
+    background: rgba(9, 22, 18, 0.68);
+    border-color: rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.94);
+    box-shadow: 0 20px 55px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  .mj-shell .game-shell__title,
+  .mj-shell .game-room-item__name,
+  .mj-shell .preset-card__name,
+  .mj-lobby-shell .lobby-shell__title,
+  .mj-lobby-shell .lobby-panel,
+  .mj-lobby-shell .lobby-shell__code,
+  .mj-lobby-shell .game-room-item__name {
+    color: var(--text-primary);
+  }
+
+  .mj-shell .game-shell__subtitle,
+  .mj-shell .game-shell__footnote,
+  .mj-shell .game-room-item__code,
+  .mj-shell .game-room-item__slots,
+  .mj-lobby-shell .lobby-shell__subtitle,
+  .mj-lobby-shell .lobby-shell__code,
+  .mj-lobby-shell .lobby-panel__title,
+  .mj-shell .game-field__label,
+  .mj-shell .game-room-list__title,
+  .mj-shell .game-shell__eyebrow,
+  .mj-lobby-shell .lobby-shell__eyebrow { color: var(--text-secondary); }
+
+  .dark .mj-shell .game-shell__title,
+  .dark .mj-shell .game-room-item__name,
+  .dark .mj-shell .preset-card__name,
+  .dark .mj-lobby-shell .lobby-shell__title,
+  .dark .mj-lobby-shell .lobby-panel,
+  .dark .mj-lobby-shell .lobby-shell__code,
+  .dark .mj-lobby-shell .game-room-item__name { color: rgba(255,255,255,0.96); }
+
+  .dark .mj-shell .game-shell__subtitle,
+  .dark .mj-shell .game-shell__footnote,
+  .dark .mj-shell .game-room-item__code,
+  .dark .mj-shell .game-room-item__slots,
+  .dark .mj-lobby-shell .lobby-shell__subtitle,
+  .dark .mj-lobby-shell .lobby-shell__code,
+  .dark .mj-lobby-shell .lobby-panel__title,
+  .dark .mj-shell .game-field__label,
+  .dark .mj-shell .game-room-list__title,
+  .dark .mj-shell .game-shell__eyebrow,
+  .dark .mj-lobby-shell .lobby-shell__eyebrow { color: rgba(255,255,255,0.74); }
+
+  .mj-shell .game-room-item,
+  .mj-shell .preset-card {
+    background: rgba(255,255,255,0.58);
+    border-color: rgba(63,45,31,0.10);
+  }
+
+  .dark .mj-shell .game-room-item,
+  .dark .mj-shell .preset-card {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.12);
+  }
+}
