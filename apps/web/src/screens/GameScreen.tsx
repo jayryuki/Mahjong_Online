@@ -601,7 +601,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   const canDiscard = legalActions.includes('DISCARD_TILE');
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'auto' }}>
       {/* === ZONE 1: Top HUD === */}
       <div style={{ flexShrink: 0, position: 'relative' }}>
         <InfoBar roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
@@ -628,7 +628,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       </div>
 
       {/* === ZONE 2: Center board (discard region) === */}
-      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
+      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: '40dvh', position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
         {/* River overlay */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
           <CenterRiver mySeat={mySeat} seats={seatDisplays} />
