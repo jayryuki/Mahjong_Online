@@ -87,7 +87,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
           {isWild && <span style={{ fontSize: `${1.125 * scale}rem`, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.15)', padding: '1px 6px', borderRadius: '3px' }}>WILD</span>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '0.625rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div className="mj-action-prompt__actions" style={{ display: 'flex', gap: '0.625rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         {visibleActions.map((action) => {
           const isWin = action.startsWith('DECLARE_WIN');
           const isPass = action === 'PASS_REACTION';
@@ -111,9 +111,14 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
               style={{
                 ...(isWin ? { animation: 'pulse 1.5s infinite' } : {}),
                 animation: isWin ? 'pulse 1.5s infinite' : 'fadeInUp 250ms ease-out',
-                fontSize: `${1.5 * scale}rem`,
-                padding: '0.375rem 0.75rem',
-                ...(isPass && { opacity: 0.7, fontSize: `${1.25 * scale}rem`, padding: '0.25rem 0.5rem' }),
+                fontSize: `${1.05 * scale}rem`,
+                minWidth: `${86 * scale}px`,
+                minHeight: `${44 * scale}px`,
+                padding: `${8 * scale}px ${14 * scale}px`,
+                borderRadius: '12px',
+                fontWeight: 800,
+                color: isPass ? 'var(--text-primary)' : '#fff',
+                ...(isPass && { opacity: 0.92, fontSize: `${0.95 * scale}rem` }),
               }}
             >
               {ACTION_LABELS[action] || action}

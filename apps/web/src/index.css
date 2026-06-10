@@ -564,3 +564,140 @@
     border-color: rgba(255,255,255,0.12);
   }
 }
+
+
+/* PROD CLEAN FIXES */
+@layer components {
+  .game-shell__hero,
+  .game-shell__card,
+  .lobby-shell__hero,
+  .lobby-panel,
+  .lobby-shell__actions {
+    color: var(--text-primary);
+  }
+
+  .game-shell__title,
+  .lobby-shell__title,
+  .game-room-item__name,
+  .preset-card__name,
+  .lobby-shell__code {
+    color: var(--text-primary) !important;
+  }
+
+  .game-shell__subtitle,
+  .game-shell__footnote,
+  .game-room-item__code,
+  .game-room-item__slots,
+  .lobby-shell__subtitle,
+  .lobby-panel__title,
+  .game-field__label,
+  .game-room-list__title,
+  .game-shell__eyebrow,
+  .lobby-shell__eyebrow {
+    color: var(--text-secondary) !important;
+  }
+
+  :root:not(.dark) .game-shell__hero,
+  :root:not(.dark) .game-shell__card,
+  :root:not(.dark) .lobby-shell__hero,
+  :root:not(.dark) .lobby-panel,
+  :root:not(.dark) .lobby-shell__actions,
+  html:not(.dark) .game-shell__hero,
+  html:not(.dark) .game-shell__card,
+  html:not(.dark) .lobby-shell__hero,
+  html:not(.dark) .lobby-panel,
+  html:not(.dark) .lobby-shell__actions {
+    background: rgba(255, 249, 241, 0.96) !important;
+    border: 1px solid rgba(63, 45, 31, 0.10) !important;
+    box-shadow: 0 12px 34px rgba(71, 45, 26, 0.10), inset 0 1px 0 rgba(255,255,255,0.7) !important;
+  }
+}
+
+@layer components {
+  .mj-action-prompt__actions button {
+    text-shadow: none !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.14);
+  }
+
+  .mj-player-dock button {
+    backdrop-filter: blur(8px);
+  }
+}
+
+
+/* FINAL LIGHTMODE HOTFIX */
+@layer components {
+  html:not(.dark) .game-shell__hero,
+  html:not(.dark) .game-shell__card,
+  html:not(.dark) .lobby-shell__hero,
+  html:not(.dark) .lobby-panel,
+  html:not(.dark) .lobby-shell__actions {
+    background: rgba(255, 248, 238, 0.98) !important;
+    border: 1px solid rgba(120, 94, 64, 0.16) !important;
+    box-shadow: 0 12px 34px rgba(71, 45, 26, 0.10), inset 0 1px 0 rgba(255,255,255,0.88) !important;
+    color: var(--text-primary) !important;
+  }
+
+  html:not(.dark) .game-shell__title,
+  html:not(.dark) .lobby-shell__title,
+  html:not(.dark) .game-room-item__name,
+  html:not(.dark) .preset-card__name,
+  html:not(.dark) .lobby-shell__code,
+  html:not(.dark) .lobby-panel,
+  html:not(.dark) .lobby-panel * {
+    color: var(--text-primary) !important;
+  }
+
+  html:not(.dark) .game-shell__subtitle,
+  html:not(.dark) .lobby-shell__subtitle,
+  html:not(.dark) .game-shell__footnote,
+  html:not(.dark) .game-room-item__code,
+  html:not(.dark) .game-room-item__slots,
+  html:not(.dark) .lobby-panel__title,
+  html:not(.dark) .game-field__label,
+  html:not(.dark) .game-room-list__title,
+  html:not(.dark) .game-shell__eyebrow,
+  html:not(.dark) .lobby-shell__eyebrow {
+    color: var(--text-secondary) !important;
+  }
+
+  html:not(.dark) .game-room-item,
+  html:not(.dark) .preset-card {
+    background: rgba(255,255,255,0.72) !important;
+    border: 1px solid rgba(120, 94, 64, 0.12) !important;
+  }
+}
+
+@layer components {
+  .mj-action-prompt__actions {
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .mj-action-prompt__actions button {
+    color: #1f2937 !important;
+    background: rgba(255,248,238,0.94) !important;
+    border: 1px solid rgba(120,94,64,0.18) !important;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+  }
+
+  .dark .mj-action-prompt__actions button {
+    color: #fff !important;
+    background: rgba(16,28,22,0.92) !important;
+    border: 1px solid rgba(255,255,255,0.14) !important;
+  }
+
+  .mj-player-dock button {
+    opacity: 1 !important;
+  }
+
+  .mj-player-dock button:disabled {
+    color: rgba(255,255,255,0.92) !important;
+    background: rgba(255,248,238,0.88) !important;
+  }
+
+  .dark .mj-player-dock button:disabled {
+    background: rgba(255,255,255,0.18) !important;
+  }
+}
