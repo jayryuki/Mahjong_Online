@@ -140,6 +140,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   // Blind kan reaction
   const [blindKanReactionOptions, setBlindKanReactionOptions] = useState<string[]>([]);
   const [blindKanTileId, setBlindKanTileId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
 
   // Listen for state changes
   useEffect(() => {
@@ -600,6 +602,13 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   const canDiscard = legalActions.includes('DISCARD_TILE');
 
+  const handleChangeName = (name: string) => {
+    const trimmed = name.trim().slice(0, 20);
+    if (!trimmed) return;
+    try { localStorage.setItem('mahjong_displayName', trimmed); } catch {}
+    room?.send('change-name', { displayName: trimmed });
+  };
+
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'auto' }}>
       {/* === ZONE 1: Top HUD === */}
@@ -694,9 +703,55 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             <span style={{ fontSize: `${1 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
               {mySeatDisplay ? ['E','S','W','N'][mySeatDisplay.seatIndex] : ''} {mySeatDisplay?.isDealer && 'D'}
             </span>
-            <span style={{ fontSize: `${1.125 * scale}rem`, fontWeight: 600, color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {mySeatDisplay?.displayName}
-            </span>
+            {editingName ? (
+              <input
+                autoFocus
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onBlur={() => {
+                  const trimmed = nameInput.trim().slice(0, 20);
+                  if (trimmed && trimmed !== mySeatDisplay?.displayName) handleChangeName(trimmed);
+                  setEditingName(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                  if (e.key === 'Escape') setEditingName(false);
+                }}
+                style={{
+                  minWidth: 0,
+                  width: 'min(100%, 220px)',
+                  fontSize: `${1.025 * scale}rem`,
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid var(--accent-warm)',
+                  borderRadius: '999px',
+                  padding: '0.2rem 0.6rem',
+                  outline: 'none',
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setNameInput(mySeatDisplay?.displayName ?? ''); setEditingName(true); }}
+                style={{
+                  minWidth: 0,
+                  fontSize: `${1.125 * scale}rem`,
+                  fontWeight: 600,
+                  color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                }}
+                title="Click to change name"
+              >
+                {mySeatDisplay?.displayName} ✎
+              </button>
+            )}
             {isMyTurn && (
               <span style={{
                 background: 'var(--accent-warm)',
