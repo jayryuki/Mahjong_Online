@@ -701,3 +701,38 @@
     background: rgba(255,255,255,0.18) !important;
   }
 }
+
+
+/* ROOM CODE GLOBAL HOTFIX */
+@layer components {
+  html:not(.dark) .game-code-input,
+  html:not(.dark) .game-code-input--large {
+    background: rgba(255,255,255,0.92) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(120, 94, 64, 0.18) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+  }
+
+  html:not(.dark) .game-code-input::placeholder,
+  html:not(.dark) .game-code-input--large::placeholder {
+    color: rgba(107, 102, 94, 0.58) !important;
+  }
+
+  html:not(.dark) .lobby-shell__code,
+  html:not(.dark) .game-room-item__code,
+  html:not(.dark) .game-shell__footnote,
+  html:not(.dark) .game-shell__subtitle,
+  html:not(.dark) .lobby-shell__subtitle,
+  html:not(.dark) .game-room-item__slots,
+  html:not(.dark) .game-field__label,
+  html:not(.dark) .lobby-panel__title,
+  html:not(.dark) .game-room-list__title,
+  html:not(.dark) .game-shell__eyebrow,
+  html:not(.dark) .lobby-shell__eyebrow {
+    color: var(--text-secondary) !important;
+  }
+
+  html:not(.dark) .lobby-shell__code {
+    color: var(--text-primary) !important;
+  }
+}
