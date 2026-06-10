@@ -836,3 +836,18 @@
     border-radius: 20px;
   }
 }
+
+
+@layer components {
+  .game-shell {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .game-shell > *,
+  .game-shell__inner > * {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
