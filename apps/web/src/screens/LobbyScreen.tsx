@@ -72,7 +72,7 @@ export function LobbyScreen() {
 
         <section className="lobby-panel">
           <div className="lobby-panel__title">Players</div>
-          <PlayerList players={players} />
+          <PlayerList players={players} myPlayerId={mySessionId} onChangeName={(name) => { try { localStorage.setItem('mahjong_displayName', name); } catch {} room?.send('change-name', { displayName: name }); }} />
         </section>
 
         <section className="lobby-panel">

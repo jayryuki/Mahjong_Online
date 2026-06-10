@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input } from '@games/ui';
 import { GameShell } from '../components/layout/GameShell.js';
 
+const LS_NAME_KEY = 'mahjong_displayName';
+
 export function CreateRoomScreen() {
   const navigate = useNavigate();
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(() => { try { return localStorage.getItem(LS_NAME_KEY) || ''; } catch { return ''; } });
   const [selectedPreset, setSelectedPreset] = useState('hong-kong');
 
   const presets = [
@@ -14,6 +16,7 @@ export function CreateRoomScreen() {
 
   const handleCreate = async () => {
     if (!displayName.trim()) return;
+    try { localStorage.setItem(LS_NAME_KEY, displayName.trim()); } catch {}
     try {
       const res = await fetch('/api/rooms', {
         method: 'POST',
@@ -34,7 +37,7 @@ export function CreateRoomScreen() {
     >
       <div className="game-form-grid">
         <div className="game-field game-field--full">
-          <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => { setDisplayName(e.target.value); try { localStorage.setItem(LS_NAME_KEY, e.target.value); } catch {} }} />
         </div>
         <div className="game-field game-field--full">
           <label className="game-field__label">Game Variant</label>

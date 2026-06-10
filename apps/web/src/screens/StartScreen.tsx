@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input } from '@games/ui';
 import { GameShell } from '../components/layout/GameShell.js';
 import { useTheme } from '../hooks/useTheme.js';
+
+const LS_NAME_KEY = 'mahjong_displayName';
 import { getTileImageUrl } from '../lib/tile-theme.js';
 
 const PREVIEW_TILES = [
@@ -35,7 +37,7 @@ export function StartScreen() {
   const { theme } = useTheme();
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [joinCode, setJoinCode] = useState('');
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(() => { try { return localStorage.getItem(LS_NAME_KEY) || ''; } catch { return ''; } });
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -45,7 +47,11 @@ export function StartScreen() {
       .catch(() => {});
   }, []);
 
-  const getName = () => playerName.trim() || randomName();
+  const getName = () => {
+    const name = playerName.trim() || randomName();
+    try { localStorage.setItem(LS_NAME_KEY, name); } catch {}
+    return name;
+  };
 
   const handleCreateRoom = async () => {
     const name = getName();

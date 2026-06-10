@@ -923,3 +923,56 @@
     }
   }
 }
+
+
+/* BUTTON COMFORT PASS */
+@layer components {
+  .game-shell button,
+  .lobby-shell button,
+  .game-topbar button,
+  .bj-deck-selector__option,
+  .mj-action-prompt__actions button {
+    padding-inline: 0.9rem;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .game-shell__actions,
+  .lobby-shell__actions,
+  .lobby-shell__topbar,
+  .game-shell__topbar {
+    gap: 0.75rem;
+  }
+
+  .game-shell__actions > *,
+  .lobby-shell__actions > * {
+    min-width: 0;
+  }
+
+  .game-room-item,
+  .lobby-panel button,
+  .game-shell button,
+  .lobby-shell button {
+    font-size: 0.92rem;
+  }
+}
+
+@media (max-width: 720px) {
+  @layer components {
+    .game-shell button,
+    .lobby-shell button,
+    .game-topbar button,
+    .bj-deck-selector__option,
+    .mj-action-prompt__actions button {
+      padding-inline: 0.8rem;
+      padding-block: 0.65rem;
+      font-size: 0.9rem;
+    }
+
+    .lobby-shell__actions,
+    .game-shell__actions {
+      gap: 0.6rem;
+    }
+  }
+}

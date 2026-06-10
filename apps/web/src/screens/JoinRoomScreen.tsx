@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input } from '@games/ui';
 import { GameShell } from '../components/layout/GameShell.js';
 
+const LS_NAME_KEY = 'mahjong_displayName';
+
 export function JoinRoomScreen() {
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(() => { try { return localStorage.getItem(LS_NAME_KEY) || ''; } catch { return ''; } });
   const [error, setError] = useState('');
 
   const handleJoin = async () => {
     if (!roomCode.trim() || !displayName.trim()) return;
+    try { localStorage.setItem(LS_NAME_KEY, displayName.trim()); } catch {}
     try {
       const res = await fetch(`/api/rooms/${roomCode.toUpperCase()}`);
       if (!res.ok) {
@@ -47,7 +50,7 @@ export function JoinRoomScreen() {
           />
         </div>
         <div className="game-field game-field--full">
-          <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <Input label="Your Name" placeholder="Enter your name" value={displayName} onChange={(e) => { setDisplayName(e.target.value); try { localStorage.setItem(LS_NAME_KEY, e.target.value); } catch {} }} />
         </div>
       </div>
       {error && <div className="game-error">{error}</div>}
