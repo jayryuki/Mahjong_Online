@@ -142,6 +142,18 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   const [blindKanTileId, setBlindKanTileId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [turnSecondsLeft, setTurnSecondsLeft] = useState(30);
+  const [autoPlayWarning, setAutoPlayWarning] = useState(false);
+  const turnDeadlineRef = useRef<number | null>(null);
+
+
+  const resetTurnTimer = useCallback(() => {
+    if (!isMyTurn) return;
+    turnDeadlineRef.current = Date.now() + 30000;
+    setTurnSecondsLeft(30);
+    setAutoPlayWarning(false);
+    try { room?.send('tile-activity'); } catch {}
+  }, [isMyTurn, room]);
 
   // Listen for state changes
   useEffect(() => {
@@ -360,7 +372,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         unsub();
       }
     };
-  }, [room]);
+  }, [room, resetTurnTimer]);
 
   // Observe hand row height
   useEffect(() => {
@@ -376,6 +388,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   // Handle actions from ActionPrompt
   const handleAction = useCallback((action: string, chiTileIds?: [string, string]) => {
+    resetTurnTimer();
     if (!room) return;
 
     setIsMyTurn(false);
@@ -469,6 +482,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   // Handle discard
   const handleDiscard = useCallback((tile: TileDef) => {
+    resetTurnTimer();
     if (!room) return;
     room.send('discard-tile', { tileId: tile.id });
     setHandTiles((prev) => prev.filter((t) => t.id !== tile.id));
@@ -477,7 +491,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     setIsMyTurn(false);
     setSelectedIndex(null);
     setStatusMessage('Tile discarded. Waiting...');
-  }, [room]);
+  }, [room, resetTurnTimer]);
 
   // Handle tile reorder (drag-and-drop)
   const handleReorder = useCallback((newTiles: TileDef[]) => {
@@ -494,7 +508,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   // Chat send handler
   const handleChatSend = useCallback((text: string) => {
     room?.send('chat', { text });
-  }, [room]);
+  }, [room, resetTurnTimer]);
 
   // Leave game handler
   const handleLeave = useCallback(() => {
@@ -602,6 +616,50 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   const canDiscard = legalActions.includes('DISCARD_TILE');
 
+
+  useEffect(() => {
+    if (!isMyTurn) {
+      turnDeadlineRef.current = null;
+      setTurnSecondsLeft(30);
+      setAutoPlayWarning(false);
+      return;
+    }
+    turnDeadlineRef.current = Date.now() + 30000;
+    setTurnSecondsLeft(30);
+    setAutoPlayWarning(false);
+  }, [isMyTurn, handVersion, legalActions.join(',')]);
+
+  useEffect(() => {
+    if (!isMyTurn) return;
+    const interval = window.setInterval(() => {
+      const deadline = turnDeadlineRef.current;
+      if (!deadline) return;
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setTurnSecondsLeft(remaining);
+      setAutoPlayWarning(remaining <= 10);
+      if (remaining > 0) return;
+
+      if (legalActions.includes('DRAW_TILE')) {
+        room?.send('draw-tile');
+        turnDeadlineRef.current = Date.now() + 30000;
+        setTurnSecondsLeft(30);
+        setAutoPlayWarning(false);
+        return;
+      }
+
+      if (legalActions.includes('DISCARD_TILE')) {
+        const stableTiles = handTiles.filter((tile) => tile.id !== drawnTileId);
+        const autoTile = stableTiles[stableTiles.length - 1] ?? handTiles[handTiles.length - 1];
+        if (autoTile) {
+          room?.send('discard-tile', { tileId: autoTile.id });
+          turnDeadlineRef.current = null;
+        }
+      }
+    }, 250);
+    return () => window.clearInterval(interval);
+  }, [isMyTurn, legalActions, handTiles, drawnTileId, room]);
+
+
   const handleChangeName = (name: string) => {
     const trimmed = name.trim().slice(0, 20);
     if (!trimmed) return;
@@ -614,7 +672,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       {/* === ZONE 1: Top HUD === */}
       <div style={{ flexShrink: 0, position: 'relative' }}>
         <InfoBar roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
-        <div style={{ position: 'absolute', top: 4, right: 8, zIndex: 60, display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div style={{ position: 'absolute', top: 10, right: 12, zIndex: 60, display: 'flex', gap: '8px', alignItems: 'center' }}>
           <ThemeToggle />
           <button
             onClick={() => setShowLeaveConfirm(true)}
@@ -622,8 +680,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
               background: 'rgba(0,0,0,0.5)',
               color: '#fff',
               border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '8px',
-              padding: '4px 10px',
+              borderRadius: '10px',
+              padding: '7px 12px',
               cursor: 'pointer',
               fontSize: `${1.125 * scale}rem`,
               fontWeight: 600,
@@ -754,10 +812,10 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             )}
             {isMyTurn && (
               <span style={{
-                background: 'var(--accent-warm)',
+                background: autoPlayWarning ? '#b45309' : 'var(--accent-warm)',
                 color: '#fff',
-                padding: '1px 6px',
-                borderRadius: '4px',
+                padding: '2px 8px',
+                borderRadius: '999px',
                 fontWeight: 800,
                 fontSize: `${0.8 * scale}rem`,
                 letterSpacing: '0.08em',
@@ -765,12 +823,14 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                 animation: 'turnBannerPulse 2s ease-in-out infinite',
                 flexShrink: 0,
               }}>
-                Your Turn
+                {autoPlayWarning ? `Auto in ${turnSecondsLeft}s` : `Your Turn · ${turnSecondsLeft}s`}
               </span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-            <span style={{ fontSize: `${1 * scale}rem`, color: 'var(--text-muted)', maxWidth: '16ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{statusMessage}</span>
+            <span style={{ fontSize: `${1 * scale}rem`, color: autoPlayWarning ? '#fcd34d' : 'var(--text-muted)', maxWidth: '28ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {autoPlayWarning ? `No move in ${turnSecondsLeft}s: auto-play will draw, then toss from the marked Auto tiles.` : statusMessage}
+            </span>
             <span style={{ fontSize: `${1.25 * scale}rem`, fontWeight: 700, color: 'var(--text-primary)' }}>{mySeatDisplay?.score ?? 300}</span>
             <ChatPanel messages={chatMessages} mySessionId={mySessionId} onSend={handleChatSend} />
           </div>
@@ -784,7 +844,20 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         )}
 
         {/* Row 3: Hand tiles (dedicated, tiles only) */}
-        <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: isMobile ? '4px' : '8px', paddingBottom: isMobile ? '4px' : '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '2px' }}>
+          <div style={{
+            fontSize: `${0.78 * scale}rem`,
+            color: autoPlayWarning ? '#fcd34d' : 'var(--text-muted)',
+            background: autoPlayWarning ? 'rgba(120, 53, 15, 0.22)' : 'rgba(255,255,255,0.04)',
+            border: autoPlayWarning ? '1px solid rgba(245,196,81,0.35)' : '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '999px',
+            padding: '0.2rem 0.6rem',
+            fontWeight: 700,
+          }}>
+            Auto-toss zone: the 2 rightmost hand tiles
+          </div>
+        </div>
+        <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: isMobile ? '8px' : '12px', paddingBottom: isMobile ? '10px' : '12px' }}>
           <HandArea
             tiles={handTiles}
             drawnTileId={drawnTileId}
@@ -795,6 +868,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             availableHeight={handRowHeight}
             selectedIndex={selectedIndex}
             onSelectionChange={setSelectedIndex}
+            onInteraction={resetTurnTimer}
           />
         </div>
 
@@ -817,7 +891,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                 background: 'var(--surface-panel)',
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border-subtle)',
-                borderRadius: '4px',
+                borderRadius: '999px',
                 cursor: 'pointer',
                 fontWeight: 500,
                 fontSize: `${0.85 * scale}rem`,
@@ -840,7 +914,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
               onClick={() => handleDiscard(handTiles[selectedIndex])}
               style={{
                 padding: '0.25rem 1rem',
-                background: 'var(--accent-warm)',
+                background: autoPlayWarning ? '#b45309' : 'var(--accent-warm)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '6px',

@@ -19,9 +19,10 @@ interface HandAreaProps {
   availableHeight?: number;
   selectedIndex?: number | null;
   onSelectionChange?: (index: number | null) => void;
+  onInteraction?: () => void;
 }
 
-export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wildCardTileId, onReorder, availableHeight, selectedIndex: controlledSelectedIndex, onSelectionChange }: HandAreaProps) {
+export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wildCardTileId, onReorder, availableHeight, selectedIndex: controlledSelectedIndex, onSelectionChange, onInteraction }: HandAreaProps) {
   const [internalSelectedIndex, setInternalSelectedIndex] = useState<number | null>(null);
   const selectedIndex = controlledSelectedIndex !== undefined ? controlledSelectedIndex : internalSelectedIndex;
   const setSelectedIndex = onSelectionChange ?? setInternalSelectedIndex;
@@ -226,7 +227,10 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     touchStartPos.current = null;
   }, [touchDragIndex, touchDropIndex, touchDraggingActive, tiles, onReorder]);
 
-  const makeWrapperStyle = (index: number, isDrawn: boolean, isSelected: boolean, isDiscarding: boolean, isWild: boolean, isDragging: boolean, isDropTarget: boolean): React.CSSProperties => {
+  const makeWrapperStyle = (index: number, isDrawn: boolean, isSelected: boolean, isDiscarding: boolean, isWild: boolean, isDragging: boolean, isDropTarget: boolean, isAutoTossTile: boolean): React.CSSProperties => {
+    const boxShadowParts: string[] = [];
+    if (isWild && !isDrawn) boxShadowParts.push('inset 0 0 0 2px #fbbf24', '0 0 8px rgba(251,191,36,0.4)');
+    if (isAutoTossTile) boxShadowParts.push('inset 0 0 0 2px rgba(245,196,81,0.95)', '0 0 0 3px rgba(245,196,81,0.22)', '0 12px 26px rgba(245,196,81,0.18)');
     const style: React.CSSProperties = {
       flex: `0 0 ${baseW}px`,
       width: baseW,
@@ -238,7 +242,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       opacity: isDragging ? 0.4 : 1,
       ...(isSelected && { transform: 'translateY(-8px)' }),
       ...(isDiscarding && { transform: 'translateY(-16px) scale(0.9)', opacity: 0.4 }),
-      ...(isWild && !isDrawn && { borderRadius: '4px', boxShadow: 'inset 0 0 0 2px #fbbf24, 0 0 8px rgba(251,191,36,0.4)' }),
+      ...((isWild && !isDrawn) || isAutoTossTile ? { borderRadius: '8px', boxShadow: boxShadowParts.join(', ') } : {}),
       ...(isDropTarget && { borderLeft: '3px solid var(--accent-warm)', marginLeft: -1 }),
     };
     if (isDrawn) {
@@ -255,25 +259,52 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     return style;
   };
 
+  const autoTossStartIndex = Math.max(0, tiles.length - (drawnTileId ? 3 : 2));
+
   const renderTileEl = (tile: TileDef, index: number, isDrawn: boolean) => {
     const isSelected = selectedIndex === index;
     const isDiscarding = discardingId === tile.id;
     const isWild = wildSortKey !== null && tileSortKey(tile) === wildSortKey;
     const isDragging = dragIndex === index || touchDragIndex === index;
+    const isAutoTossTile = !isDrawn && index >= autoTossStartIndex;
     const isDropTarget = (dropIndex === index && dragIndex !== null && dragIndex !== index) ||
                          (touchDropIndex === index && touchDragIndex !== null && touchDragIndex !== index);
 
     const tileEl = (
-      <TileRenderer
-        tile={tile}
-        width={baseW}
-        height={baseH}
-        selected={isSelected}
-        onClick={canDiscard ? () => setSelectedIndex(isSelected ? null : index) : undefined}
-      />
+      <div style={{ position: 'relative' }}>
+        <TileRenderer
+          tile={tile}
+          width={baseW}
+          height={baseH}
+          selected={isSelected}
+          onClick={canDiscard ? () => { onInteraction?.(); setSelectedIndex(isSelected ? null : index); } : undefined}
+        />
+        {isAutoTossTile && (
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: '-12px',
+            transform: 'translateX(-50%)',
+            fontSize: '0.55rem',
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: '#f5c451',
+            background: 'rgba(8, 22, 17, 0.92)',
+            border: '1px solid rgba(245,196,81,0.55)',
+            borderRadius: '999px',
+            padding: '1px 5px',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.22)',
+          }}>
+            Auto
+          </div>
+        )}
+      </div>
     );
 
-    const wrapperStyle = makeWrapperStyle(index, isDrawn, isSelected, isDiscarding, isWild, isDragging, isDropTarget);
+    const wrapperStyle = makeWrapperStyle(index, isDrawn, isSelected, isDiscarding, isWild, isDragging, isDropTarget, isAutoTossTile);
 
     const desktopDragHandlers = onReorder ? {
       draggable: true,
