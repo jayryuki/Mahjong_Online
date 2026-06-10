@@ -201,11 +201,17 @@
   .game-shell {
     position: relative;
     min-height: 100dvh;
-    overflow-x: hidden;
-    padding: clamp(1rem, 2vw, 1.5rem);
+    overflow-x: clip;
+    width: 100%;
+    max-width: 100vw;
+    padding-top: max(clamp(1rem, 2vw, 1.5rem), env(safe-area-inset-top));
+    padding-right: max(clamp(1rem, 2vw, 1.5rem), env(safe-area-inset-right));
+    padding-bottom: max(clamp(1rem, 2vw, 1.5rem), env(safe-area-inset-bottom));
+    padding-left: max(clamp(1rem, 2vw, 1.5rem), env(safe-area-inset-left));
     display: flex;
     align-items: stretch;
     justify-content: center;
+    box-sizing: border-box;
   }
 
   .game-shell__aurora {
@@ -221,10 +227,13 @@
   .game-shell__inner {
     position: relative;
     z-index: 1;
-    width: min(100%, 1100px);
+    width: 100%;
+    max-width: min(1100px, 100%);
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: clamp(1rem, 2.5vw, 1.5rem);
+    box-sizing: border-box;
   }
 
   .game-shell__topbar,
@@ -812,5 +821,24 @@
 @layer components {
   .mj-table-stage {
     touch-action: pan-y;
+  }
+}
+
+
+@media (max-width: 720px) {
+  .game-shell {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .game-shell__inner {
+    gap: 0.75rem;
+  }
+
+  .game-shell__hero,
+  .game-shell__card {
+    border-radius: 20px;
   }
 }
