@@ -736,3 +736,58 @@
     color: var(--text-primary) !important;
   }
 }
+
+
+/* BUTTON + TOPBAR GLOBAL HOTFIX */
+@layer components {
+  .game-shell__topbar,
+  .lobby-shell__topbar {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    align-items: center;
+  }
+
+  .game-shell__topbar > *,
+  .lobby-shell__topbar > * {
+    margin: 0 !important;
+  }
+
+  .game-shell button,
+  .lobby-shell button,
+  .game-topbar button {
+    min-height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .game-shell__topbar button,
+  .lobby-shell__topbar button,
+  .game-topbar button {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  }
+
+  html:not(.dark) .game-shell__topbar button,
+  html:not(.dark) .lobby-shell__topbar button,
+  html:not(.dark) .game-topbar button {
+    background: rgba(255,255,255,0.82) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid rgba(120,94,64,0.18) !important;
+  }
+
+  .dark .game-shell__topbar button,
+  .dark .lobby-shell__topbar button,
+  .dark .game-topbar button {
+    background: rgba(255,255,255,0.08) !important;
+    color: rgba(255,255,255,0.94) !important;
+    border: 1px solid rgba(255,255,255,0.14) !important;
+  }
+
+  html:not(.dark) .game-shell__topbar button:hover,
+  html:not(.dark) .lobby-shell__topbar button:hover,
+  html:not(.dark) .game-topbar button:hover {
+    background: rgba(255,255,255,0.94) !important;
+  }
+}

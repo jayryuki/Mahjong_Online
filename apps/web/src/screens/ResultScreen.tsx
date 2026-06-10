@@ -60,7 +60,7 @@ export function ResultScreen() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: '480px' }}>
-        <Button variant="ghost" onClick={() => navigate(`/game/${roomCode}`)}>&larr; Back to Table</Button>
+        <Button variant="ghost" onClick={() => navigate('/')}>&larr; Back to Table</Button>
         <ThemeToggle />
       </div>
 
@@ -117,7 +117,7 @@ export function ResultScreen() {
           ))}
         </div>
 
-        <Button size="lg" onClick={() => navigate(`/game/${roomCode}`)} style={{ width: '100%' }}>
+        <Button size="lg" onClick={() => navigate('/')} style={{ width: '100%' }}>
           Next Hand
         </Button>
       </div>

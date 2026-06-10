@@ -107,7 +107,6 @@ export function StartScreen() {
           <Button size="lg" variant="secondary" onClick={() => navigate('/join')} style={{ flex: 1 }}>Join by Code</Button>
         </>
       }
-      footer={<div className="game-shell__footnote">Hong Kong rules, cleaner spacing, and a responsive lobby that stays readable everywhere.</div>}
     >
       <div className="game-form-grid">
         <div className="game-field game-field--full">
