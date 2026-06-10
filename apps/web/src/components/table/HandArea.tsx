@@ -138,6 +138,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
   // --- Mobile touch drag-and-drop ---
   const [touchDragIndex, setTouchDragIndex] = useState<number | null>(null);
   const [touchDropIndex, setTouchDropIndex] = useState<number | null>(null);
+  const [touchDraggingActive, setTouchDraggingActive] = useState(false);
   const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const topRowRef = useRef<HTMLDivElement>(null);
   const bottomRowRef = useRef<HTMLDivElement>(null);
@@ -147,12 +148,36 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     const t = e.touches[0];
     touchStartPos.current = { x: t.clientX, y: t.clientY };
     setTouchDragIndex(index);
+    setTouchDropIndex(null);
+    setTouchDraggingActive(false);
   }, [onReorder]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (touchDragIndex === null) return;
-    e.preventDefault();
     const t = e.touches[0];
+
+    if (!touchStartPos.current) return;
+
+    const deltaX = t.clientX - touchStartPos.current.x;
+    const deltaY = t.clientY - touchStartPos.current.y;
+    const dragThreshold = 10;
+
+    if (!touchDraggingActive) {
+      if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > dragThreshold) {
+        setTouchDragIndex(null);
+        setTouchDropIndex(null);
+        touchStartPos.current = null;
+        return;
+      }
+
+      if (Math.abs(deltaX) <= dragThreshold && Math.abs(deltaY) <= dragThreshold) {
+        return;
+      }
+
+      setTouchDraggingActive(true);
+    }
+
+    e.preventDefault();
 
     const { baseW: bw, gap: g, topRowCount: trc, bottomRowCount: brc, tileCount: tc } = layoutRef.current;
 
@@ -179,12 +204,13 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     if (targetIdx !== null && targetIdx >= 0 && targetIdx < tc) {
       setTouchDropIndex(targetIdx);
     }
-  }, [touchDragIndex]);
+  }, [touchDragIndex, touchDraggingActive]);
 
   const handleTouchEnd = useCallback(() => {
-    if (touchDragIndex === null || touchDropIndex === null) {
+    if (touchDragIndex === null || touchDropIndex === null || !touchDraggingActive) {
       setTouchDragIndex(null);
       setTouchDropIndex(null);
+      setTouchDraggingActive(false);
       touchStartPos.current = null;
       return;
     }
@@ -196,8 +222,9 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
     }
     setTouchDragIndex(null);
     setTouchDropIndex(null);
+    setTouchDraggingActive(false);
     touchStartPos.current = null;
-  }, [touchDragIndex, touchDropIndex, tiles, onReorder]);
+  }, [touchDragIndex, touchDropIndex, touchDraggingActive, tiles, onReorder]);
 
   const makeWrapperStyle = (index: number, isDrawn: boolean, isSelected: boolean, isDiscarding: boolean, isWild: boolean, isDragging: boolean, isDropTarget: boolean): React.CSSProperties => {
     const style: React.CSSProperties = {
@@ -299,7 +326,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
       padding: `${gap}px ${gap}px 0`,
       alignItems: 'center',
       width: '100%',
-      touchAction: 'none',
+      touchAction: touchDraggingActive ? 'none' : 'pan-y',
     }}>
       <div ref={topRowRef} style={{
         display: 'flex',

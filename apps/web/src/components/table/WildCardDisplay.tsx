@@ -35,6 +35,7 @@ export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
+    if (e.pointerType === 'touch') return;
     setIsDragging(true);
     const rect = dragRef.current.getBoundingClientRect();
     dragOffsetRef.current = {
@@ -86,7 +87,7 @@ export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
         border: '1px solid rgba(251,191,36,0.25)',
         backdropFilter: 'blur(4px)',
         cursor: isDragging ? 'grabbing' : 'grab',
-        touchAction: 'none',
+        touchAction: isDragging ? 'none' : 'auto',
         userSelect: 'none',
         transition: isDragging ? 'none' : 'box-shadow 150ms ease',
         ...(isDragging && { boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }),
