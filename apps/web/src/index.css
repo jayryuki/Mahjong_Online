@@ -851,3 +851,75 @@
     box-sizing: border-box;
   }
 }
+
+
+/* LOBBY CHILD OVERFLOW FIX */
+@layer components {
+  .lobby-shell,
+  .lobby-grid,
+  .lobby-panel,
+  .lobby-panel__body,
+  .lobby-panel__body--fill,
+  .lobby-shell__topbar,
+  .lobby-shell__code-group,
+  .lobby-shell__actions,
+  .game-form-grid,
+  .game-field,
+  .game-room-item,
+  .game-room-item__meta {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .lobby-shell__topbar,
+  .lobby-shell__code-group,
+  .lobby-shell__actions,
+  .game-room-item,
+  .game-room-item__meta {
+    flex-wrap: wrap;
+  }
+
+  .lobby-shell__code,
+  .game-room-item__code,
+  .game-room-item__name,
+  .lobby-shell__subtitle,
+  .lobby-panel__title,
+  .game-field__label,
+  .game-room-list__title {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .lobby-shell__code {
+    letter-spacing: 0.12em;
+  }
+}
+
+@media (max-width: 720px) {
+  @layer components {
+    .lobby-shell__topbar {
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .lobby-shell__code-group {
+      justify-content: flex-start;
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    .lobby-shell__code {
+      font-size: 0.88rem;
+      letter-spacing: 0.08em;
+    }
+
+    .lobby-panel,
+    .lobby-shell__hero,
+    .lobby-shell__actions {
+      overflow-x: clip;
+    }
+  }
+}
