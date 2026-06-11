@@ -5,6 +5,7 @@ dist/
 .DS_Store
 .playwright-mcp/
 old_screenshots/
+codedb.snapshot
 # Root-level screenshots (stale dev artifacts)
 /*.png
 /*.jpg
