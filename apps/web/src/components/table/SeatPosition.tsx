@@ -23,7 +23,7 @@ const BASE_MELD_TILE_H = 47;
 
 function renderMeldTile(tile: TileDef, w: number, h: number, concealed: boolean) {
   if (concealed) {
-    return <div style={{ width: w, height: h, background: '#4a6741', borderRadius: '3px', border: '1px solid rgba(0,0,0,0.2)' }} />;
+    return <div style={{ width: w, height: h, background: 'var(--mahjong-concealed-tile-bg)', borderRadius: '3px', border: '1px solid var(--game-panel-border)' }} />;
   }
   return <TileRenderer tile={tile} width={w} height={h} />;
 }
@@ -46,8 +46,8 @@ export function SeatPosition({ position, seatIndex, displayName, tileCount, isDe
       <div style={{
         padding: isMobile ? `${2 * scale}px ${5 * scale}px` : `${3 * scale}px ${8 * scale}px`,
         borderRadius: '6px',
-        background: isActive ? 'var(--accent-warm)' : 'rgba(0,0,0,0.6)',
-        border: isActive ? 'none' : '1px solid rgba(255,255,255,0.2)',
+        background: isActive ? 'var(--accent-warm)' : 'var(--game-panel-overlay)',
+        border: isActive ? 'none' : '1px solid var(--game-panel-border)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -111,10 +111,10 @@ export function SeatPosition({ position, seatIndex, displayName, tileCount, isDe
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '1px',
-                background: 'rgba(0,0,0,0.25)',
+                background: 'var(--game-panel-overlay)',
                 padding: '3px 4px',
                 borderRadius: '4px',
-                border: '1px solid rgba(255,255,255,0.1)',
+                border: '1px solid var(--game-panel-border)',
               }}>
                 <div style={{ display: 'flex', gap: '1px' }}>
                   {concealed

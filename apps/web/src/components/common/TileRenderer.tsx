@@ -17,11 +17,11 @@ interface TileRendererProps {
 const WIND_LABELS: Record<string, string> = { east: 'E', south: 'S', west: 'W', north: 'N' };
 
 export function TileRenderer({ tile, width = 72, height = 96, selected, onClick }: TileRendererProps) {
-  const { theme } = useTheme();
+  const { theme, themeStyle } = useTheme();
   const imageName = tileToImageName(tile);
   if (!imageName) return null;
 
-  const src = getTileImageUrl(imageName, theme);
+  const src = getTileImageUrl(imageName, theme, themeStyle);
   const label = tile.rank ? String(tile.rank) : WIND_LABELS[tile.honorName ?? ''] ?? null;
 
   return (
@@ -44,9 +44,10 @@ export function TileRenderer({ tile, width = 72, height = 96, selected, onClick 
           display: 'block',
           borderRadius: '6px',
           objectFit: 'contain',
-          filter: selected ? 'brightness(1.05)' : undefined,
+          filter: selected ? 'var(--mahjong-tile-filter) brightness(1.08)' : 'var(--mahjong-tile-filter)',
           transition: 'filter 120ms ease',
           background: 'var(--tile-face-bg)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.42), 0 2px 5px rgba(0,0,0,0.16)',
           border: selected ? '2px solid var(--accent-warm)' : '1px solid var(--tile-face-border)',
           boxSizing: 'border-box',
         }}

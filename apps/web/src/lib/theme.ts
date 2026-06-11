@@ -5,12 +5,19 @@
  */
 
 export type ThemeId = 'light' | 'dark';
+export type ThemeStyleId = 'pastel-glass' | 'velvet-soft' | 'royal-material';
 
 const STORAGE_KEY = 'games-theme';
 
 export function getTheme(): ThemeId {
   if (typeof window === 'undefined') return 'light';
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
+export function getThemeStyle(): ThemeStyleId {
+  if (typeof window === 'undefined') return 'pastel-glass';
+  const style = document.documentElement.getAttribute('data-theme-style');
+  return style === 'velvet-soft' || style === 'royal-material' ? style : 'pastel-glass';
 }
 
 export function setTheme(theme: ThemeId): void {

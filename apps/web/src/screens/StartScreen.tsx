@@ -34,7 +34,7 @@ function randomName(): string {
 
 export function StartScreen() {
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const { theme, themeStyle } = useTheme();
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [joinCode, setJoinCode] = useState('');
   const [playerName, setPlayerName] = useState(() => { try { return localStorage.getItem(LS_NAME_KEY) || ''; } catch { return ''; } });
@@ -103,7 +103,7 @@ export function StartScreen() {
       preview={
         <div className="mj-hero-preview" aria-hidden="true">
           {PREVIEW_TILES.map(name => (
-            <img key={name} src={getTileImageUrl(name, theme)} alt="" width={48} height={67} style={{ borderRadius: '8px', objectFit: 'contain', display: 'block' }} />
+            <img key={name} src={getTileImageUrl(name, theme, themeStyle)} alt="" width={48} height={67} style={{ borderRadius: '8px', objectFit: 'contain', display: 'block' }} />
           ))}
         </div>
       }

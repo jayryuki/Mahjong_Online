@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { HandArea } from '../components/table/HandArea.js';
 import { MeldArea } from '../components/table/MeldArea.js';
 import { ActionPrompt } from '../components/actions/ActionPrompt.js';
-import { Button, ThemeToggle } from '@games/ui';
+import { Button, ThemePicker } from '@games/ui';
 import { ChatPanel, ChatMessageData } from '../components/common/ChatPanel.js';
 import { TileRenderer } from '../components/common/TileRenderer.js';
 import { InfoBar } from '../components/table/InfoBar.js';
@@ -673,7 +673,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       <div style={{ flexShrink: 0, position: 'relative' }}>
         <InfoBar roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
         <div style={{ position: 'absolute', top: 10, right: 12, zIndex: 60, display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <ThemeToggle />
+          <ThemePicker />
           <button
             onClick={() => setShowLeaveConfirm(true)}
             style={{
@@ -714,7 +714,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             ". bottom ."
           `,
           minHeight: 0,
-          background: 'radial-gradient(ellipse at center, #2d5a3d 0%, #1e3f2a 60%, #152b1e 100%)',
+          background: 'radial-gradient(ellipse at center, var(--mahjong-table-center) 0%, var(--mahjong-table-bg) 62%, var(--mahjong-table-edge) 100%)',
           padding: isMobile ? '3px' : '6px',
           gap: isMobile ? '3px' : '6px',
           position: 'relative',
