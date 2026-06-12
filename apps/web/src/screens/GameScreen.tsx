@@ -695,7 +695,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       </div>
 
       {/* === ZONE 2: Center board (discard region) === */}
-      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: '40dvh', position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
+      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: isMobile ? '34dvh' : '40dvh', position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
         {/* River overlay */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
           <CenterRiver mySeat={mySeat} seats={seatDisplays} />
@@ -706,7 +706,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           width: '100%',
           height: '100%',
           display: 'grid',
-          gridTemplateRows: 'auto 1fr auto',
+          gridTemplateRows: isMobile ? 'auto 1fr auto' : 'auto 1fr auto',
           gridTemplateColumns: isMobile ? 'minmax(0, 0.25fr) 3.5fr minmax(0, 0.25fr)' : 'minmax(0, 0.4fr) 3.2fr minmax(0, 0.4fr)',
           gridTemplateAreas: `
             ". top ."
@@ -715,18 +715,18 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           `,
           minHeight: 0,
           background: 'radial-gradient(ellipse at center, var(--mahjong-table-center) 0%, var(--mahjong-table-bg) 62%, var(--mahjong-table-edge) 100%)',
-          padding: isMobile ? '3px' : '6px',
-          gap: isMobile ? '3px' : '6px',
+          padding: isMobile ? '2px' : '6px',
+          gap: isMobile ? '2px' : '6px',
           position: 'relative',
           zIndex: 1,
         }}>
           {/* Across seat (top) */}
-          <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '2px 8px' }}>
+          <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: isMobile ? '1px 4px' : '2px 8px' }}>
             {acrossSeat && <SeatPosition position="top" isActive={acrossSeat.isActive} melds={acrossSeat.melds} />}
           </div>
 
           {/* Left seat */}
-          <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
+          <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: isMobile ? '2px' : '4px' }}>
             {leftSeat && <SeatPosition position="left" isActive={leftSeat.isActive} melds={leftSeat.melds} />}
           </div>
 
@@ -734,7 +734,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           <div style={{ gridArea: 'center', minHeight: 0 }} />
 
           {/* Right seat */}
-          <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
+          <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: isMobile ? '2px' : '4px' }}>
             {rightSeat && <SeatPosition position="right" isActive={rightSeat.isActive} melds={rightSeat.melds} />}
           </div>
 

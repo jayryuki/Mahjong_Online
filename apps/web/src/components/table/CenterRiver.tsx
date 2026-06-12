@@ -37,9 +37,9 @@ function computeLayouts(tableW: number, tableH: number, isMobile: boolean) {
   const aspect = 58 / 80;
   const gap = 8;
 
-  // On mobile, use a smaller center area % so the board is more compact
-  const centerW = tableW * (isMobile ? 0.5 : 0.6);
-  const centerH = tableH * (isMobile ? 0.6 : 0.72);
+  // On mobile, keep the discard field tighter so name cards and melds have their own breathing room.
+  const centerW = tableW * (isMobile ? 0.44 : 0.6);
+  const centerH = tableH * (isMobile ? 0.42 : 0.72);
   const quadW = (centerW - gap) / 2;
   const quadH = (centerH - gap) / 2;
 
@@ -109,36 +109,58 @@ function computeLayouts(tableW: number, tableH: number, isMobile: boolean) {
 
 const SEAT_WIND_LABELS = ['E', 'S', 'W', 'N'];
 
-function getSeatBadgeAnchor(position: SeatBadgePosition, centerW: number, centerH: number, inset: number): React.CSSProperties {
+function getSeatBadgeAnchor(
+  position: SeatBadgePosition,
+  {
+    tableW,
+    tableH,
+    centerW,
+    centerH,
+    cardW,
+    cardH,
+    gap,
+    topReserved,
+  }: {
+    tableW: number;
+    tableH: number;
+    centerW: number;
+    centerH: number;
+    cardW: number;
+    cardH: number;
+    gap: number;
+    topReserved: number;
+  },
+): React.CSSProperties {
+  const riverLeft = (tableW - centerW) / 2;
+  const riverRight = riverLeft + centerW;
+  const riverTop = (tableH - centerH) / 2;
+  const riverBottom = riverTop + centerH;
+
   switch (position) {
     case 'top':
       return {
         position: 'absolute',
-        left: '50%',
-        top: `calc(50% - ${centerH / 2}px + ${inset}px)`,
-        transform: 'translate(-50%, 0)',
+        left: `${Math.max(gap, (tableW - cardW) / 2)}px`,
+        top: `${Math.max(topReserved, riverTop - cardH - gap)}px`,
       };
     case 'right':
       return {
         position: 'absolute',
-        left: `calc(50% + ${centerW / 2}px - ${inset}px)`,
-        top: '50%',
-        transform: 'translate(-100%, -50%)',
+        left: `${Math.min(tableW - cardW - gap, riverRight + gap)}px`,
+        top: `${Math.max(topReserved, Math.min(tableH - cardH - gap, (tableH - cardH) / 2))}px`,
       };
     case 'bottom':
       return {
         position: 'absolute',
-        left: '50%',
-        top: `calc(50% + ${centerH / 2}px - ${inset}px)`,
-        transform: 'translate(-50%, -100%)',
+        left: `${Math.max(gap, (tableW - cardW) / 2)}px`,
+        top: `${Math.min(tableH - cardH - gap, riverBottom + gap)}px`,
       };
     case 'left':
     default:
       return {
         position: 'absolute',
-        left: `calc(50% - ${centerW / 2}px + ${inset}px)`,
-        top: '50%',
-        transform: 'translate(0, -50%)',
+        left: `${Math.max(gap, riverLeft - cardW - gap)}px`,
+        top: `${Math.max(topReserved, Math.min(tableH - cardH - gap, (tableH - cardH) / 2))}px`,
       };
   }
 }
@@ -155,14 +177,17 @@ function SeatRiverCard({
   const isMobile = scale < 0.75;
   const justifyContent =
     position === 'left' ? 'flex-start' : position === 'right' ? 'flex-end' : 'center';
+  const compactCountLabel = isMobile ? `${seat.tileCount}t` : `${seat.tileCount} tiles`;
+  const cardWidth = isMobile ? 112 : 148;
 
   return (
     <div
       style={{
         pointerEvents: 'none',
-        minWidth: `${isMobile ? 112 : 148}px`,
-        maxWidth: `${isMobile ? 144 : 196}px`,
-        padding: isMobile ? '0.4rem 0.55rem' : '0.5rem 0.7rem',
+        width: `${cardWidth}px`,
+        minWidth: `${cardWidth}px`,
+        maxWidth: `${cardWidth}px`,
+        padding: isMobile ? '0.35rem 0.5rem' : '0.5rem 0.7rem',
         borderRadius: isMobile ? '12px' : '14px',
         background: seat.isActive
           ? 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(0,0,0,0.12)), var(--accent-warm)'
@@ -201,7 +226,7 @@ function SeatRiverCard({
             borderRadius: '999px',
             background: seat.isActive ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
             border: '1px solid rgba(255,255,255,0.14)',
-            fontSize: `${0.78 * scale}rem`,
+            fontSize: `${0.72 * scale}rem`,
             fontWeight: 800,
             letterSpacing: '0.08em',
             flexShrink: 0,
@@ -212,7 +237,7 @@ function SeatRiverCard({
         </span>
         <span
           style={{
-            fontSize: `${0.94 * scale}rem`,
+            fontSize: `${0.82 * scale}rem`,
             fontWeight: 700,
             minWidth: 0,
             overflow: 'hidden',
@@ -235,8 +260,8 @@ function SeatRiverCard({
         }}
       >
         <span style={{ fontSize: `${1.02 * scale}rem`, fontWeight: 800 }}>{seat.score}</span>
-        <span style={{ fontSize: `${0.72 * scale}rem`, color: 'var(--game-on-table-muted)', fontWeight: 700 }}>
-          {seat.tileCount} tiles
+        <span style={{ fontSize: `${0.66 * scale}rem`, color: 'var(--game-on-table-muted)', fontWeight: 700 }}>
+          {compactCountLabel}
         </span>
       </div>
     </div>
@@ -337,7 +362,11 @@ export function CenterRiver({ mySeat, seats }: CenterRiverProps) {
   const tableH = containerSize.h || 300;
   const { tileW, tileH, layouts, centerW, centerH } = computeLayouts(tableW, tableH, isMobile);
   const tilesPerRow = isMobile ? MOBILE_TILES_PER_ROW : DESKTOP_TILES_PER_ROW;
-  const badgeInset = isMobile ? 6 : 10;
+  const badgeW = isMobile ? 112 : 148;
+  const badgeH = isMobile ? 54 : 72;
+  const badgeGap = isMobile ? 10 : 14;
+  const topSeatHasMelds = (orderedSeats[2]?.melds.length ?? 0) > 0;
+  const topReserved = isMobile ? (topSeatHasMelds ? 92 : 12) : 12;
 
   return (
     <div ref={containerRef} style={{
@@ -384,7 +413,19 @@ export function CenterRiver({ mySeat, seats }: CenterRiverProps) {
           seatOffset === 0 ? 'bottom' : seatOffset === 1 ? 'right' : seatOffset === 2 ? 'top' : 'left';
 
         return (
-          <div key={`seat-card-${seat.seatIndex}`} style={getSeatBadgeAnchor(position, centerW, centerH, badgeInset)}>
+          <div
+            key={`seat-card-${seat.seatIndex}`}
+            style={getSeatBadgeAnchor(position, {
+              tableW,
+              tableH,
+              centerW,
+              centerH,
+              cardW: badgeW,
+              cardH: badgeH,
+              gap: badgeGap,
+              topReserved,
+            })}
+          >
             <SeatRiverCard seat={seat} position={position} scale={scale} />
           </div>
         );
