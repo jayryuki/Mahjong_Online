@@ -564,8 +564,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       for (let j = 0; j < melds.length; j++) {
         if (meldTypes[j]) {
           melds[j].type = meldTypes[j];
-          // kan-closed melds are concealed — hide tile identity from non-owners
-          if (meldTypes[j] === 'kan-closed') {
+          // Closed kans stay hidden to the rest of the table, but the owner can still see them.
+          if (meldTypes[j] === 'kan-closed' && i !== mySeat) {
             melds[j].isConcealed = true;
           }
         }
@@ -722,12 +722,12 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         }}>
           {/* Across seat (top) */}
           <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '2px 8px' }}>
-            {acrossSeat && <SeatPosition position="top" seatIndex={acrossSeat.seatIndex} displayName={acrossSeat.displayName} tileCount={acrossSeat.tileCount} isDealer={acrossSeat.isDealer} isActive={acrossSeat.isActive} isRiichi={acrossSeat.isRiichi} score={acrossSeat.score} melds={acrossSeat.melds} />}
+            {acrossSeat && <SeatPosition position="top" isActive={acrossSeat.isActive} melds={acrossSeat.melds} />}
           </div>
 
           {/* Left seat */}
           <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
-            {leftSeat && <SeatPosition position="left" seatIndex={leftSeat.seatIndex} displayName={leftSeat.displayName} tileCount={leftSeat.tileCount} isDealer={leftSeat.isDealer} isActive={leftSeat.isActive} isRiichi={leftSeat.isRiichi} score={leftSeat.score} melds={leftSeat.melds} />}
+            {leftSeat && <SeatPosition position="left" isActive={leftSeat.isActive} melds={leftSeat.melds} />}
           </div>
 
           {/* Center cell */}
@@ -735,7 +735,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
           {/* Right seat */}
           <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
-            {rightSeat && <SeatPosition position="right" seatIndex={rightSeat.seatIndex} displayName={rightSeat.displayName} tileCount={rightSeat.tileCount} isDealer={rightSeat.isDealer} isActive={rightSeat.isActive} isRiichi={rightSeat.isRiichi} score={rightSeat.score} melds={rightSeat.melds} />}
+            {rightSeat && <SeatPosition position="right" isActive={rightSeat.isActive} melds={rightSeat.melds} />}
           </div>
 
           {/* Bottom (my seat - empty, hand is below) */}
@@ -758,9 +758,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         {/* Row 1: Player/status */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0.5rem', flexShrink: 0, gap: '0.5rem', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
-            <span style={{ fontSize: `${1 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
-              {mySeatDisplay ? ['E','S','W','N'][mySeatDisplay.seatIndex] : ''} {mySeatDisplay?.isDealer && 'D'}
-            </span>
             {editingName ? (
               <input
                 autoFocus
@@ -794,20 +791,21 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                 onClick={() => { setNameInput(mySeatDisplay?.displayName ?? ''); setEditingName(true); }}
                 style={{
                   minWidth: 0,
-                  fontSize: `${1.125 * scale}rem`,
+                  fontSize: `${0.95 * scale}rem`,
                   fontWeight: 600,
-                  color: mySeatDisplay?.isActive ? 'var(--accent-warm)' : 'var(--text-primary)',
+                  color: 'var(--text-secondary)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                   background: 'transparent',
-                  border: 'none',
-                  padding: 0,
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '999px',
+                  padding: '0.2rem 0.6rem',
                   cursor: 'pointer',
                 }}
                 title="Click to change name"
               >
-                {mySeatDisplay?.displayName} ✎
+                Edit name
               </button>
             )}
             {isMyTurn && (
@@ -831,7 +829,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             <span style={{ fontSize: `${1 * scale}rem`, color: autoPlayWarning ? '#fcd34d' : 'var(--text-muted)', maxWidth: '28ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {autoPlayWarning ? `No move in ${turnSecondsLeft}s: auto-play will draw, then toss from the marked Auto tiles.` : statusMessage}
             </span>
-            <span style={{ fontSize: `${1.25 * scale}rem`, fontWeight: 700, color: 'var(--text-primary)' }}>{mySeatDisplay?.score ?? 300}</span>
             <ChatPanel messages={chatMessages} mySessionId={mySessionId} onSend={handleChatSend} />
           </div>
         </div>
