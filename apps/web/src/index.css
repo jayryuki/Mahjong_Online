@@ -727,6 +727,29 @@
     opacity: 1 !important;
   }
 
+  .mj-dock-control-button {
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.22),
+      0 0 2px rgba(0,0,0,0.42),
+      1px 0 0 rgba(0,0,0,0.32),
+      -1px 0 0 rgba(0,0,0,0.32),
+      0 1px 0 rgba(0,0,0,0.32),
+      0 -1px 0 rgba(0,0,0,0.32) !important;
+    -webkit-text-stroke: 0.45px rgba(18, 12, 7, 0.28);
+    letter-spacing: 0.01em;
+  }
+
+  .dark .mj-dock-control-button {
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.1),
+      0 0 2px rgba(0,0,0,0.58),
+      1px 0 0 rgba(0,0,0,0.45),
+      -1px 0 0 rgba(0,0,0,0.45),
+      0 1px 0 rgba(0,0,0,0.45),
+      0 -1px 0 rgba(0,0,0,0.45) !important;
+    -webkit-text-stroke: 0.45px rgba(0, 0, 0, 0.42);
+  }
+
   .mj-player-dock button:disabled {
     color: rgba(255,255,255,0.92) !important;
     background: rgba(255,248,238,0.88) !important;
@@ -1004,6 +1027,10 @@
     .lobby-shell__actions,
     .game-shell__actions {
       gap: 0.6rem;
+    }
+
+    .mj-player-dock {
+      padding-bottom: max(0.2rem, env(safe-area-inset-bottom));
     }
   }
 }

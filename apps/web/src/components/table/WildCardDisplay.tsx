@@ -10,6 +10,7 @@ interface WildCardDisplayProps {
 
 export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
   const scale = useScale();
+  const isMobile = scale < 0.75;
   const dragRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -20,7 +21,6 @@ export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current) return;
-    if (e.pointerType === 'touch') return;
     setIsDragging(true);
     const rect = dragRef.current.getBoundingClientRect();
     dragOffsetRef.current = {
@@ -42,15 +42,19 @@ export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
     setIsDragging(false);
   }, []);
 
+  useEffect(() => {
+    setPosition(null);
+  }, [isMobile, wildCardTileId]);
+
   if (!wildCardTileId) return null;
 
   const tile = parseTileId(wildCardTileId);
-  const tileW = Math.round(72 * scale);
-  const tileH = Math.round(99 * scale);
+  const tileW = Math.round((isMobile ? 56 : 72) * scale);
+  const tileH = Math.round((isMobile ? 78 : 99) * scale);
 
   // Default position: top-right area of viewport
-  const defaultX = typeof window !== 'undefined' ? window.innerWidth - tileW - 24 : 0;
-  const defaultY = 60;
+  const defaultX = typeof window !== 'undefined' ? (isMobile ? 8 : window.innerWidth - tileW - 24) : 0;
+  const defaultY = isMobile ? 78 : 60;
   const posX = position?.x ?? defaultX;
   const posY = position?.y ?? defaultY;
 
@@ -66,28 +70,30 @@ export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
         alignItems: 'center',
         gap: '4px',
         zIndex: 200,
-        background: 'linear-gradient(180deg, rgba(11,18,30,0.82), rgba(29,15,43,0.82))',
-        padding: `${5 * scale}px ${9 * scale}px ${7 * scale}px`,
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.18)',
-        backdropFilter: 'blur(4px)',
+        background: isMobile ? 'transparent' : 'linear-gradient(180deg, rgba(11,18,30,0.82), rgba(29,15,43,0.82))',
+        padding: isMobile ? '0px' : `${5 * scale}px ${9 * scale}px ${7 * scale}px`,
+        borderRadius: isMobile ? '0px' : '12px',
+        border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.18)',
+        backdropFilter: isMobile ? 'none' : 'blur(4px)',
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: isDragging ? 'none' : 'auto',
         userSelect: 'none',
         transition: isDragging ? 'none' : 'box-shadow 150ms ease',
-        boxShadow: '0 10px 24px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.05)',
-        ...(isDragging && { boxShadow: '0 14px 26px rgba(0,0,0,0.45)' }),
+        boxShadow: isMobile
+          ? 'none'
+          : '0 10px 24px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.05)',
+        ...(isDragging && { boxShadow: isMobile ? '0 10px 20px rgba(0,0,0,0.28)' : '0 14px 26px rgba(0,0,0,0.45)' }),
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      <div style={{ fontSize: `${0.8 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#fff', fontWeight: 900, textShadow: '0 1px 4px rgba(0,0,0,0.45)' }}>
+      <div style={{ fontSize: `${0.8 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#fff', fontWeight: 900, textShadow: '0 1px 4px rgba(0,0,0,0.45)', display: isMobile ? 'none' : 'block' }}>
         Joker
         <span style={{ fontSize: `${0.75 * scale}rem`, opacity: 0.6, marginLeft: '4px' }}>&#x2630;</span>
       </div>
       <div style={{ borderRadius: '8px' }}>
-        <TileRenderer tile={tile} width={tileW} height={tileH} isWild showWildBadge />
+        <TileRenderer tile={tile} width={tileW} height={tileH} isWild showWildBadge={isMobile} />
       </div>
     </div>
   );

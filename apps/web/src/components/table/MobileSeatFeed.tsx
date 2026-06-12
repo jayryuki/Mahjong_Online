@@ -136,12 +136,12 @@ export function MobileSeatFeed({
   recentActionBySeat = {},
 }: MobileSeatFeedProps) {
   const scale = useScale();
+  const rem = (value: number, min: number) => `${Math.max(min, value * scale)}rem`;
   const wildTileKey = wildCardTileId ? tileKey(parseTileId(wildCardTileId)) : null;
-  const jokerTile = wildCardTileId ? parseTileId(wildCardTileId) : null;
-  const riverTileW = Math.max(26, Math.round(52 * scale));
-  const riverTileH = Math.max(36, Math.round(72 * scale));
-  const meldTileW = Math.max(28, Math.round(56 * scale));
-  const meldTileH = Math.max(39, Math.round(78 * scale));
+  const riverTileW = Math.max(24, Math.round(46 * scale));
+  const riverTileH = Math.max(34, Math.round(64 * scale));
+  const meldTileW = Math.max(26, Math.round(48 * scale));
+  const meldTileH = Math.max(36, Math.round(68 * scale));
   const orderedSeats = useMemo(
     () =>
       [2, 3, 1, 0]
@@ -158,8 +158,8 @@ export function MobileSeatFeed({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.55rem',
-        padding: '0.5rem',
+        gap: '0.35rem',
+        padding: '0.35rem 0.4rem 0.45rem',
         overflowY: 'auto',
         WebkitOverflowScrolling: 'touch',
       }}
@@ -168,59 +168,18 @@ export function MobileSeatFeed({
         <div
           style={{
             flex: '0 0 auto',
-            padding: '0.5rem 0.7rem',
-            borderRadius: '14px',
+            padding: '0.35rem 0.55rem',
+            borderRadius: '12px',
             background: 'linear-gradient(135deg, rgba(184,92,58,0.96), rgba(244,114,182,0.84))',
             color: '#fff',
             fontWeight: 800,
-            fontSize: `${0.82 * scale}rem`,
+            fontSize: rem(0.78, 0.7),
             letterSpacing: '0.03em',
-            boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
+            boxShadow: '0 10px 24px rgba(0,0,0,0.16)',
             textShadow: '0 1px 2px rgba(0,0,0,0.35)',
           }}
         >
           {noticeText}
-        </div>
-      )}
-
-      {jokerTile && (
-        <div
-          style={{
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.75rem',
-            padding: '0.55rem 0.7rem',
-            borderRadius: '16px',
-            background: 'rgba(8, 18, 27, 0.34)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: `${0.68 * scale}rem`,
-                color: 'var(--game-on-table-muted)',
-                fontWeight: 800,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Joker tile
-            </div>
-            <div
-              style={{
-                fontSize: `${0.84 * scale}rem`,
-                color: 'var(--game-on-table-text)',
-                fontWeight: 700,
-              }}
-            >
-              Matching tiles glow across your hand and reactions.
-            </div>
-          </div>
-          <TileRenderer tile={jokerTile} width={riverTileW + 6} height={riverTileH + 8} isWild showWildBadge />
         </div>
       )}
 
@@ -234,16 +193,16 @@ export function MobileSeatFeed({
               flex: '0 0 auto',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.45rem',
-              padding: '0.65rem',
-              borderRadius: '18px',
+              gap: '0.26rem',
+              padding: '0.42rem 0.5rem',
+              borderRadius: '14px',
               background: seat.isActive
                 ? 'linear-gradient(180deg, rgba(184,92,58,0.18), rgba(7,16,14,0.28))'
                 : 'rgba(9, 20, 18, 0.26)',
               border: `1px solid ${seat.isActive ? 'rgba(245,196,81,0.55)' : 'rgba(255,255,255,0.1)'}`,
               boxShadow: seat.isActive
-                ? '0 12px 28px rgba(184,92,58,0.18), inset 0 1px 0 rgba(255,255,255,0.08)'
-                : '0 10px 22px rgba(0,0,0,0.12)',
+                ? '0 8px 18px rgba(184,92,58,0.16), inset 0 1px 0 rgba(255,255,255,0.08)'
+                : '0 7px 16px rgba(0,0,0,0.11)',
               backdropFilter: 'blur(8px)',
             }}
           >
@@ -261,15 +220,15 @@ export function MobileSeatFeed({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    minWidth: '2.2rem',
-                    height: '1.6rem',
-                    padding: '0 0.45rem',
+                    minWidth: '2rem',
+                    height: '1.38rem',
+                    padding: '0 0.4rem',
                     borderRadius: '999px',
                     background: seat.isActive ? 'rgba(245,196,81,0.18)' : 'rgba(255,255,255,0.08)',
                     border: '1px solid rgba(255,255,255,0.12)',
                     color: 'var(--game-on-table-text)',
                     fontWeight: 900,
-                    fontSize: `${0.7 * scale}rem`,
+                    fontSize: rem(0.66, 0.62),
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                     flexShrink: 0,
@@ -280,7 +239,7 @@ export function MobileSeatFeed({
                 <div style={{ minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: `${0.9 * scale}rem`,
+                      fontSize: rem(0.84, 0.74),
                       fontWeight: 800,
                       color: 'var(--game-on-table-text)',
                       whiteSpace: 'nowrap',
@@ -294,9 +253,9 @@ export function MobileSeatFeed({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.35rem',
+                      gap: '0.25rem',
                       flexWrap: 'wrap',
-                      fontSize: `${0.72 * scale}rem`,
+                      fontSize: rem(0.7, 0.64),
                       color: 'var(--game-on-table-muted)',
                       fontWeight: 700,
                     }}
@@ -319,10 +278,10 @@ export function MobileSeatFeed({
                       border: '1px solid rgba(255,255,255,0.14)',
                       color: 'var(--game-on-table-text)',
                       fontWeight: 800,
-                      fontSize: `${0.66 * scale}rem`,
+                      fontSize: rem(0.64, 0.6),
                       letterSpacing: '0.05em',
                       textTransform: 'uppercase',
-                      maxWidth: '11rem',
+                      maxWidth: '8.5rem',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -339,10 +298,10 @@ export function MobileSeatFeed({
                       background: 'var(--accent-warm)',
                       color: '#fff',
                       fontWeight: 900,
-                      fontSize: `${0.7 * scale}rem`,
+                      fontSize: rem(0.66, 0.62),
                       letterSpacing: '0.08em',
                       textTransform: 'uppercase',
-                      boxShadow: '0 8px 18px rgba(184,92,58,0.28)',
+                      boxShadow: '0 6px 14px rgba(184,92,58,0.24)',
                     }}
                   >
                     Active
@@ -351,10 +310,10 @@ export function MobileSeatFeed({
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.22rem' }}>
               <span
                 style={{
-                  fontSize: `${0.64 * scale}rem`,
+                  fontSize: rem(0.6, 0.56),
                   color: 'var(--game-on-table-muted)',
                   fontWeight: 800,
                   textTransform: 'uppercase',
@@ -366,10 +325,10 @@ export function MobileSeatFeed({
               <MeldStrip melds={seat.melds} tileW={meldTileW} tileH={meldTileH} wildTileKey={wildTileKey} />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.22rem' }}>
               <span
                 style={{
-                  fontSize: `${0.64 * scale}rem`,
+                  fontSize: rem(0.6, 0.56),
                   color: 'var(--game-on-table-muted)',
                   fontWeight: 800,
                   textTransform: 'uppercase',
@@ -408,24 +367,12 @@ export function MobileSeatFeed({
                     </div>
                   ))
                 ) : (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--game-on-table-muted)', fontWeight: 600 }}>
-                    No discards yet
+                  <span style={{ fontSize: rem(0.68, 0.62), color: 'var(--game-on-table-muted)', fontWeight: 600 }}>
+                    No discards
                   </span>
                 )}
               </div>
             </div>
-
-            {seat.seatIndex === mySeat && (
-              <div
-                style={{
-                  fontSize: `${0.7 * scale}rem`,
-                  color: 'var(--game-on-table-muted)',
-                  fontWeight: 700,
-                }}
-              >
-                Your concealed hand stays in the dock below for easy discard control.
-              </div>
-            )}
           </section>
         );
       })}

@@ -780,8 +780,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       {/* === ZONE 1: Top HUD === */}
       <div style={{ flexShrink: 0, position: 'relative' }}>
         <InfoBar roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
-        <div style={{ position: 'absolute', top: 10, right: 12, zIndex: 60, display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <ThemePicker />
+        <div style={{ position: 'absolute', top: isMobile ? 4 : 10, right: isMobile ? 6 : 12, zIndex: 60, display: 'flex', gap: isMobile ? '4px' : '8px', alignItems: 'center' }}>
+          <ThemePicker style={isMobile ? { gap: '0.3rem', transform: 'scale(0.9)', transformOrigin: 'top right' } : undefined} />
           <button
             onClick={() => setShowLeaveConfirm(true)}
             style={{
@@ -789,9 +789,9 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
               color: '#fff',
               border: '1px solid rgba(255,255,255,0.2)',
               borderRadius: '10px',
-              padding: '7px 12px',
+              padding: isMobile ? '4px 8px' : '7px 12px',
               cursor: 'pointer',
-              fontSize: `${1.125 * scale}rem`,
+              fontSize: `${(isMobile ? 0.95 : 1.125) * scale}rem`,
               fontWeight: 600,
               fontFamily: "'Inter', sans-serif",
               backdropFilter: 'blur(4px)',
@@ -847,9 +847,9 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
               </div>
               <div style={{ gridArea: 'bottom' }} />
             </div>
-            <WildCardDisplay wildCardTileId={wildCardTileId} />
           </>
         )}
+        <WildCardDisplay wildCardTileId={wildCardTileId} />
       </div>
 
       {/* === ZONE 3: Bottom player panel === */}
@@ -946,8 +946,70 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           </div>
         )}
 
-        {/* Row 3: Hand tiles (dedicated, tiles only) */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '2px' }}>
+        {/* Row 3: Controls above hand */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.375rem',
+          padding: isMobile ? '4px 0 2px' : '2px 0',
+          flexShrink: 0,
+          minHeight: 0,
+          flexWrap: 'wrap',
+        }}>
+          {handOrder !== null && (
+            <button
+              className="mj-dock-control-button mj-dock-control-button--sort"
+              onClick={handleSort}
+              style={{
+                padding: isMobile ? '0.45rem 1rem' : '0.2rem 0.6rem',
+                background: 'var(--surface-panel)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '999px',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: `${(isMobile ? 0.98 : 0.85) * scale}rem`,
+                minWidth: isMobile ? `${74 * scale}px` : undefined,
+              }}
+            >
+              Sort
+            </button>
+          )}
+          {allActions.length > 0 && (() => {
+            const discardTile = reactionDiscardTileId ? parseTileId(reactionDiscardTileId) : null;
+            const isWild = discardTile && wildCardTileId && tileKey(discardTile) === tileKey(parseTileId(wildCardTileId));
+            const chiOpts = chiTileOptions.map(pair => ({
+              tileIds: [...pair],
+              label: pair.map(id => { const t = parseTileId(id); return t.suit ? `${t.rank}` : t.honorName ?? '?'; }).join('-'),
+            }));
+            return <ActionPrompt actions={allActions} onAction={handleAction} discardTile={discardTile} isWild={!!isWild} chiOptions={chiOpts} />;
+          })()}
+          {canDiscard && selectedIndex !== null && (
+            <button
+              className="mj-dock-control-button mj-dock-control-button--draw"
+              onClick={() => handleDiscard(handTiles[selectedIndex])}
+              style={{
+                padding: isMobile ? '0.5rem 1.15rem' : '0.25rem 1rem',
+                background: autoPlayWarning ? '#b45309' : 'var(--accent-warm)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '999px',
+                cursor: 'pointer',
+                fontWeight: 800,
+                fontSize: `${(isMobile ? 1.04 : 1.125) * scale}rem`,
+                boxShadow: '0 2px 6px rgba(184, 92, 58, 0.4)',
+                animation: 'fadeInUp 200ms ease-out',
+                minWidth: isMobile ? `${90 * scale}px` : undefined,
+              }}
+            >
+              Discard
+            </button>
+          )}
+        </div>
+
+        {/* Row 4: Hand tiles (dedicated, tiles only) */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: isMobile ? '0px' : '2px' }}>
           <div style={{
             fontSize: `${0.78 * scale}rem`,
             color: autoPlayWarning ? '#fcd34d' : 'var(--text-muted)',
@@ -973,64 +1035,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             onSelectionChange={setSelectedIndex}
             onInteraction={resetTurnTimer}
           />
-        </div>
-
-        {/* Row 4: Action row (buttons, sort, discard) */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.375rem',
-          padding: '2px 0',
-          flexShrink: 0,
-          minHeight: 0,
-          flexWrap: 'wrap',
-        }}>
-          {handOrder !== null && (
-            <button
-              onClick={handleSort}
-              style={{
-                padding: '0.2rem 0.6rem',
-                background: 'var(--surface-panel)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '999px',
-                cursor: 'pointer',
-                fontWeight: 500,
-                fontSize: `${0.85 * scale}rem`,
-              }}
-            >
-              Sort
-            </button>
-          )}
-          {allActions.length > 0 && (() => {
-            const discardTile = reactionDiscardTileId ? parseTileId(reactionDiscardTileId) : null;
-            const isWild = discardTile && wildCardTileId && tileKey(discardTile) === tileKey(parseTileId(wildCardTileId));
-            const chiOpts = chiTileOptions.map(pair => ({
-              tileIds: [...pair],
-              label: pair.map(id => { const t = parseTileId(id); return t.suit ? `${t.rank}` : t.honorName ?? '?'; }).join('-'),
-            }));
-            return <ActionPrompt actions={allActions} onAction={handleAction} discardTile={discardTile} isWild={!!isWild} chiOptions={chiOpts} />;
-          })()}
-          {canDiscard && selectedIndex !== null && (
-            <button
-              onClick={() => handleDiscard(handTiles[selectedIndex])}
-              style={{
-                padding: '0.25rem 1rem',
-                background: autoPlayWarning ? '#b45309' : 'var(--accent-warm)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: `${1.125 * scale}rem`,
-                boxShadow: '0 2px 6px rgba(184, 92, 58, 0.4)',
-                animation: 'fadeInUp 200ms ease-out',
-              }}
-            >
-              Discard
-            </button>
-          )}
         </div>
       </div>
 
