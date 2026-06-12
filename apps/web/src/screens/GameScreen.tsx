@@ -10,10 +10,11 @@ import { InfoBar } from '../components/table/InfoBar.js';
 import { CenterRiver } from '../components/table/CenterRiver.js';
 import { SeatPosition } from '../components/table/SeatPosition.js';
 import { WildCardDisplay } from '../components/table/WildCardDisplay.js';
+import { MobileSeatFeed } from '../components/table/MobileSeatFeed.js';
 import { useScale } from '../hooks/useScale.js';
 import { clearRoom } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
-import { playTurnSound, playReactionSound, playTileSound, playWinSound } from '../lib/sounds.js';
+import { playTurnSound, playReactionSound, playWinSound } from '../lib/sounds.js';
 import { parseTileId } from '../lib/tile-utils.js';
 import type { SeatDisplay } from '../lib/types.js';
 
@@ -24,6 +25,38 @@ function tileKey(t: TileDef): string {
     return `${suitOrder[t.suit]}${t.rank!.toString().padStart(2, '0')}`;
   }
   return `9${t.honorName ?? 'zzz'}`;
+}
+
+const SEAT_WIND_NAMES = ['East', 'South', 'West', 'North'];
+const SUIT_LABELS: Record<string, string> = { man: 'Characters', pin: 'Dots', sou: 'Bamboo' };
+const HONOR_LABELS: Record<string, string> = {
+  east: 'East',
+  south: 'South',
+  west: 'West',
+  north: 'North',
+  haku: 'White Dragon',
+  hatsu: 'Green Dragon',
+  chun: 'Red Dragon',
+};
+
+function formatSeatWind(seatIndex: number): string {
+  return SEAT_WIND_NAMES[seatIndex] ?? `Seat ${seatIndex}`;
+}
+
+function formatTileLabel(tile: TileDef): string {
+  if (tile.suit) {
+    return `${tile.rank} ${SUIT_LABELS[tile.suit] ?? tile.suit}`;
+  }
+  return HONOR_LABELS[tile.honorName ?? ''] ?? tile.honorName ?? 'tile';
+}
+
+function formatMeldLabel(type: string): string {
+  if (type === 'chi') return 'Chi';
+  if (type === 'pon') return 'Pon';
+  if (type === 'kan-open') return 'Open Kan';
+  if (type === 'kan-added') return 'Added Kan';
+  if (type === 'kan-closed') return 'Closed Kan';
+  return 'Meld';
 }
 
 // Apply custom hand ordering; falls back to default sort for tiles not in the order
@@ -61,6 +94,14 @@ interface SeatData {
   hasPassedReaction: boolean;
 }
 
+interface TableNoticeData {
+  actorSeat: number;
+  fromSeat?: number | null;
+  meldType: string;
+  claimedTileId?: string | null;
+  tileIds?: string[];
+}
+
 interface GameScreenProps {
   room: any;
   mySessionId: string;
@@ -69,6 +110,7 @@ interface GameScreenProps {
 
 export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   const navigate = useNavigate();
+  void roomCode;
 
   // My seat index
   const [mySeat, setMySeat] = useState<number>(0);
@@ -113,12 +155,21 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   // Status message
   const [statusMessage, setStatusMessage] = useState<string>('Connecting...');
+  const [callNotice, setCallNotice] = useState<string | null>(null);
+  const [recentActionBySeat, setRecentActionBySeat] = useState<Record<number, { label: string }>>({});
 
   // Whether it's currently the player's turn (for visual emphasis)
   const [isMyTurn, setIsMyTurn] = useState(false);
 
   // Track seat mapping from state
   const seatMapRef = useRef<Map<string, number>>(new Map());
+  const seatLabelsRef = useRef<Record<number, string>>({
+    0: 'East',
+    1: 'South',
+    2: 'West',
+    3: 'North',
+  });
+  const noticeTimerRef = useRef<number | null>(null);
 
   // Chat messages
   const [chatMessages, setChatMessages] = useState<ChatMessageData[]>([]);
@@ -146,6 +197,21 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   const [autoPlayWarning, setAutoPlayWarning] = useState(false);
   const turnDeadlineRef = useRef<number | null>(null);
 
+  const clearCallNoticeTimer = useCallback(() => {
+    if (noticeTimerRef.current !== null) {
+      window.clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+  }, []);
+
+  const showCallNotice = useCallback((message: string) => {
+    setCallNotice(message);
+    clearCallNoticeTimer();
+    noticeTimerRef.current = window.setTimeout(() => {
+      setCallNotice(null);
+      noticeTimerRef.current = null;
+    }, 4200);
+  }, [clearCallNoticeTimer]);
 
   const resetTurnTimer = useCallback(() => {
     if (!isMyTurn) return;
@@ -172,6 +238,12 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         }
       }
       seatMapRef.current = newSeatMap;
+      seatLabelsRef.current = {
+        0: players.find((p) => p.seatIndex === 0)?.displayName || formatSeatWind(0),
+        1: players.find((p) => p.seatIndex === 1)?.displayName || formatSeatWind(1),
+        2: players.find((p) => p.seatIndex === 2)?.displayName || formatSeatWind(2),
+        3: players.find((p) => p.seatIndex === 3)?.displayName || formatSeatWind(3),
+      };
 
       // Find my seat and spectator status
       const myPlayer = players.find((p: PlayerData) => p.playerId === mySessionId);
@@ -211,6 +283,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     };
   }, [room, mySessionId]);
 
+  useEffect(() => () => clearCallNoticeTimer(), [clearCallNoticeTimer]);
+
   // Listen for server messages
   useEffect(() => {
     if (!room) return;
@@ -225,6 +299,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setHandVersion(data.handVersion);
       setHandResult(null);
       if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
+      setRecentActionBySeat({});
+      setCallNotice(null);
 
       // Reconstruct turn state from server response
       if (data.phase && data.legalActions) {
@@ -264,6 +340,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setHandResult(null);
       setIsMyTurn(false);
       if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
+      setRecentActionBySeat({});
+      setCallNotice(null);
     };
 
     const onYourTurnDraw = (data: { seat: number }) => {
@@ -305,8 +383,33 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       const meldTileIds = new Set(data.meld.tileIds);
       setHandTiles((prev) => prev.filter((t) => !meldTileIds.has(t.id)));
       if (data.handVersion !== undefined) setHandVersion(data.handVersion);
-      const meldLabel = data.meld.type === 'chi' ? 'Chi' : data.meld.type === 'pon' ? 'Pon' : 'Kan';
-      setStatusMessage(`${meldLabel} called! You must discard a tile.`);
+    };
+
+    const onTableNotice = (data: TableNoticeData) => {
+      const actorLabel = seatLabelsRef.current[data.actorSeat] ?? formatSeatWind(data.actorSeat);
+      const meldLabel = formatMeldLabel(data.meldType);
+      const claimedLabel = data.claimedTileId ? formatTileLabel(parseTileId(data.claimedTileId)) : null;
+      const fromLabel = data.fromSeat !== undefined && data.fromSeat !== null
+        ? seatLabelsRef.current[data.fromSeat] ?? formatSeatWind(data.fromSeat)
+        : null;
+
+      let message = fromLabel
+        ? `${actorLabel} called ${meldLabel} on ${claimedLabel ?? 'a tile'} from ${fromLabel}.`
+        : `${actorLabel} declared ${meldLabel}${claimedLabel ? ` with ${claimedLabel}` : ''}.`;
+
+      if (data.actorSeat === mySeatRef.current) {
+        message += ' Discard a tile.';
+      }
+
+      setStatusMessage(message);
+      showCallNotice(message);
+      setRecentActionBySeat((prev) => ({
+        ...prev,
+        [data.actorSeat]: {
+          label: claimedLabel ? `${meldLabel} · ${claimedLabel}` : meldLabel,
+        },
+      }));
+      playReactionSound();
     };
 
     const onHandResult = (data: any) => {
@@ -315,6 +418,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setReactionOptions([]);
       setBlindKanReactionOptions([]);
       setDrawnTileId(null);
+      setRecentActionBySeat({});
+      setCallNotice(null);
       if (data.endReason === 'exhaustive-draw') {
         setStatusMessage('Exhaustive draw! No one wins this hand.');
       } else if (data.blindKanRon) {
@@ -355,6 +460,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     unsubs.push(room.onMessage('legal-actions', onLegalActions));
     unsubs.push(room.onMessage('reaction-options', onReactionOptions));
     unsubs.push(room.onMessage('meld-applied', onMeldApplied));
+    unsubs.push(room.onMessage('table-notice', onTableNotice));
     unsubs.push(room.onMessage('hand-result', onHandResult));
     unsubs.push(room.onMessage('match-end', onMatchEnd));
     unsubs.push(room.onMessage('blind-kan-reaction-options', onBlindKanReactionOptions));
@@ -364,6 +470,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setSpectatorAllHands(null);
       setMySeat(data.seatIndex);
       mySeatRef.current = data.seatIndex;
+      setRecentActionBySeat({});
+      setCallNotice(null);
       room.send('request-hand');
     }));
 
@@ -372,7 +480,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         unsub();
       }
     };
-  }, [room, resetTurnTimer]);
+  }, [room, resetTurnTimer, showCallNotice]);
 
   // Observe hand row height
   useEffect(() => {
@@ -586,7 +694,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   };
 
   const seatDisplays = buildSeatDisplays();
-  const allActions = [...legalActions, ...reactionOptions, ...blindKanReactionOptions];
+  const allActions = Array.from(new Set([...legalActions, ...reactionOptions, ...blindKanReactionOptions]));
 
   // My seat display for the bottom panel
   const mySeatDisplay = seatDisplays.find(s => s.seatIndex === mySeat);
@@ -696,54 +804,52 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
       {/* === ZONE 2: Center board (discard region) === */}
       <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: isMobile ? '34dvh' : '40dvh', position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
-        {/* River overlay */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
-          <CenterRiver mySeat={mySeat} seats={seatDisplays} />
-        </div>
-
-        {/* Opponent grid */}
-        <div style={{
-          width: '100%',
-          height: '100%',
-          display: 'grid',
-          gridTemplateRows: isMobile ? 'auto 1fr auto' : 'auto 1fr auto',
-          gridTemplateColumns: isMobile ? 'minmax(0, 0.25fr) 3.5fr minmax(0, 0.25fr)' : 'minmax(0, 0.4fr) 3.2fr minmax(0, 0.4fr)',
-          gridTemplateAreas: `
-            ". top ."
-            "left center right"
-            ". bottom ."
-          `,
-          minHeight: 0,
-          background: 'radial-gradient(ellipse at center, var(--mahjong-table-center) 0%, var(--mahjong-table-bg) 62%, var(--mahjong-table-edge) 100%)',
-          padding: isMobile ? '2px' : '6px',
-          gap: isMobile ? '2px' : '6px',
-          position: 'relative',
-          zIndex: 1,
-        }}>
-          {/* Across seat (top) */}
-          <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: isMobile ? '1px 4px' : '2px 8px' }}>
-            {acrossSeat && <SeatPosition position="top" isActive={acrossSeat.isActive} melds={acrossSeat.melds} />}
-          </div>
-
-          {/* Left seat */}
-          <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: isMobile ? '2px' : '4px' }}>
-            {leftSeat && <SeatPosition position="left" isActive={leftSeat.isActive} melds={leftSeat.melds} />}
-          </div>
-
-          {/* Center cell */}
-          <div style={{ gridArea: 'center', minHeight: 0 }} />
-
-          {/* Right seat */}
-          <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: isMobile ? '2px' : '4px' }}>
-            {rightSeat && <SeatPosition position="right" isActive={rightSeat.isActive} melds={rightSeat.melds} />}
-          </div>
-
-          {/* Bottom (my seat - empty, hand is below) */}
-          <div style={{ gridArea: 'bottom' }} />
-        </div>
-
-        {/* Wild card display */}
-        <WildCardDisplay wildCardTileId={wildCardTileId} />
+        {isMobile ? (
+          <MobileSeatFeed
+            seats={seatDisplays}
+            mySeat={mySeat}
+            wildCardTileId={wildCardTileId}
+            noticeText={callNotice}
+            recentActionBySeat={recentActionBySeat}
+          />
+        ) : (
+          <>
+            <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
+              <CenterRiver mySeat={mySeat} seats={seatDisplays} />
+            </div>
+            <div style={{
+              width: '100%',
+              height: '100%',
+              display: 'grid',
+              gridTemplateRows: 'auto 1fr auto',
+              gridTemplateColumns: 'minmax(0, 0.4fr) 3.2fr minmax(0, 0.4fr)',
+              gridTemplateAreas: `
+                ". top ."
+                "left center right"
+                ". bottom ."
+              `,
+              minHeight: 0,
+              background: 'radial-gradient(ellipse at center, var(--mahjong-table-center) 0%, var(--mahjong-table-bg) 62%, var(--mahjong-table-edge) 100%)',
+              padding: '6px',
+              gap: '6px',
+              position: 'relative',
+              zIndex: 1,
+            }}>
+              <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '2px 8px' }}>
+                {acrossSeat && <SeatPosition position="top" isActive={acrossSeat.isActive} melds={acrossSeat.melds} />}
+              </div>
+              <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
+                {leftSeat && <SeatPosition position="left" isActive={leftSeat.isActive} melds={leftSeat.melds} />}
+              </div>
+              <div style={{ gridArea: 'center', minHeight: 0 }} />
+              <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
+                {rightSeat && <SeatPosition position="right" isActive={rightSeat.isActive} melds={rightSeat.melds} />}
+              </div>
+              <div style={{ gridArea: 'bottom' }} />
+            </div>
+            <WildCardDisplay wildCardTileId={wildCardTileId} />
+          </>
+        )}
       </div>
 
       {/* === ZONE 3: Bottom player panel === */}
@@ -756,8 +862,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         ...(isMyTurn && { boxShadow: '0 -4px 24px rgba(184, 92, 58, 0.3)' }),
       }}>
         {/* Row 1: Player/status */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0.5rem', flexShrink: 0, gap: '0.5rem', minHeight: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', padding: '2px 0.5rem', flexShrink: 0, gap: '0.5rem', minHeight: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'space-between' : 'flex-start', gap: '0.4rem', minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
             {editingName ? (
               <input
                 autoFocus
@@ -825,8 +931,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-            <span style={{ fontSize: `${1 * scale}rem`, color: autoPlayWarning ? '#fcd34d' : 'var(--text-muted)', maxWidth: '28ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '0.5rem', flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+            <span style={{ fontSize: `${1 * scale}rem`, color: autoPlayWarning ? '#fcd34d' : 'var(--text-muted)', maxWidth: isMobile ? 'none' : '28ch', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap', lineHeight: 1.35, flex: 1 }}>
               {autoPlayWarning ? `No move in ${turnSecondsLeft}s: auto-play will draw, then toss from the marked Auto tiles.` : statusMessage}
             </span>
             <ChatPanel messages={chatMessages} mySessionId={mySessionId} onSend={handleChatSend} />
@@ -834,7 +940,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         </div>
 
         {/* Row 2: Melds (optional) */}
-        {mySeatDisplay && mySeatDisplay.melds.length > 0 && (
+        {!isMobile && mySeatDisplay && mySeatDisplay.melds.length > 0 && (
           <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0, minHeight: 0, padding: '1px 0' }}>
             <MeldArea melds={mySeatDisplay.melds} />
           </div>
@@ -851,7 +957,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             padding: '0.2rem 0.6rem',
             fontWeight: 700,
           }}>
-            Auto-toss zone: the 2 rightmost hand tiles
+            {isMobile ? 'Auto toss: 2 rightmost tiles' : 'Auto-toss zone: the 2 rightmost hand tiles'}
           </div>
         </div>
         <div ref={handRowRef} style={{ overflow: 'visible', paddingTop: isMobile ? '8px' : '12px', paddingBottom: isMobile ? '10px' : '12px' }}>

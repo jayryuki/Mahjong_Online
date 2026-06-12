@@ -27,16 +27,14 @@ const ACTION_LABELS: Record<string, string> = {
   CALL_KAN_OPEN: 'Kan',
   CALL_KAN_CLOSED: 'Kan',
   CALL_KAN_ADDED: 'Kan',
+  DECLARE_WIN_RON: 'Ron!',
+  DECLARE_WIN_RON_BLIND_KAN: 'Ron!',
   DECLARE_WIN_TSUMO: 'Tsumo!',
 };
 
-const HIDDEN_ACTIONS = new Set(['DISCARD_TILE']);
+const HIDDEN_ACTIONS = new Set(['DISCARD_TILE', 'DECLARE_WIN_RON']);
 
 const REACTION_ACTIONS = new Set(['CALL_CHI', 'CALL_PON', 'CALL_KAN_OPEN', 'CALL_KAN_ADDED', 'DECLARE_WIN_RON']);
-
-function renderTile(tile: TileDef, w: number, h: number) {
-  return <TileRenderer tile={tile} width={w} height={h} />;
-}
 
 export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOptions }: ActionPromptProps) {
   const [showChiPicker, setShowChiPicker] = useState(false);
@@ -45,7 +43,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
   const discardTileH = Math.round(90 * scale);
   const miniTileW = Math.round(54 * scale);
   const miniTileH = Math.round(75 * scale);
-  const visibleActions = actions.filter(a => !HIDDEN_ACTIONS.has(a));
+  const visibleActions = Array.from(new Set(actions)).filter(a => !HIDDEN_ACTIONS.has(a) && ACTION_LABELS[a]);
   if (visibleActions.length === 0) return null;
 
   const hasReaction = visibleActions.some(a => REACTION_ACTIONS.has(a));
@@ -82,9 +80,8 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
             borderRadius: '8px',
             boxShadow: '0 0 14px rgba(184, 92, 58, 0.5)',
           }}>
-            {renderTile(discardTile, discardTileW, discardTileH)}
+            <TileRenderer tile={discardTile} width={discardTileW} height={discardTileH} isWild={!!isWild} showWildBadge={!!isWild} />
           </div>
-          {isWild && <span style={{ fontSize: `${1.125 * scale}rem`, color: '#fbbf24', fontWeight: 700, background: 'rgba(251,191,36,0.15)', padding: '1px 6px', borderRadius: '3px' }}>WILD</span>}
         </div>
       )}
       <div className="mj-action-prompt__actions" style={{ display: 'flex', gap: '0.625rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -92,10 +89,19 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
           const isWin = action.startsWith('DECLARE_WIN');
           const isPass = action === 'PASS_REACTION';
           const isChi = action === 'CALL_CHI';
+          const className = [
+            'mj-action-button',
+            isPass ? 'mj-action-button--pass' : '',
+            action === 'CALL_CHI' ? 'mj-action-button--chi' : '',
+            action === 'CALL_PON' ? 'mj-action-button--pon' : '',
+            action === 'CALL_KAN_OPEN' || action === 'CALL_KAN_ADDED' || action === 'CALL_KAN_CLOSED' ? 'mj-action-button--kan' : '',
+            isWin ? 'mj-action-button--win' : '',
+          ].filter(Boolean).join(' ');
           const variant = isWin ? 'primary' : 'secondary';
           return (
             <Button
               key={action}
+              className={className}
               variant={variant}
               size="sm"
               onClick={() => {
@@ -179,7 +185,7 @@ export function ActionPrompt({ actions, onAction, discardTile, isWild, chiOption
                     padding: 1,
                     position: 'relative',
                   }}>
-                    {renderTile(t, miniTileW, miniTileH)}
+                    <TileRenderer tile={t} width={miniTileW} height={miniTileH} isWild={!!(isWild && discardId === t.id)} showWildBadge={!!(isWild && discardId === t.id)} />
                     {t.id === discardId && (
                       <div style={{
                         position: 'absolute',

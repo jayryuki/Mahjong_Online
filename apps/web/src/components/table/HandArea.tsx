@@ -229,7 +229,7 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
 
   const makeWrapperStyle = (index: number, isDrawn: boolean, isSelected: boolean, isDiscarding: boolean, isWild: boolean, isDragging: boolean, isDropTarget: boolean, isAutoTossTile: boolean): React.CSSProperties => {
     const boxShadowParts: string[] = [];
-    if (isWild && !isDrawn) boxShadowParts.push('inset 0 0 0 2px #fbbf24', '0 0 8px rgba(251,191,36,0.4)');
+    if (isWild && !isDrawn) boxShadowParts.push('0 0 0 1px rgba(255,255,255,0.18)', '0 0 14px rgba(129, 140, 248, 0.18)');
     if (isAutoTossTile) boxShadowParts.push('inset 0 0 0 2px rgba(245,196,81,0.95)', '0 0 0 3px rgba(245,196,81,0.22)', '0 12px 26px rgba(245,196,81,0.18)');
     const style: React.CSSProperties = {
       flex: `0 0 ${baseW}px`,
@@ -277,6 +277,8 @@ export function HandArea({ tiles, drawnTileId, canDiscard = true, onDiscard, wil
           width={baseW}
           height={baseH}
           selected={isSelected}
+          isWild={isWild}
+          showWildBadge={isWild}
           onClick={canDiscard ? () => { onInteraction?.(); setSelectedIndex(isSelected ? null : index); } : undefined}
         />
         {isAutoTossTile && (

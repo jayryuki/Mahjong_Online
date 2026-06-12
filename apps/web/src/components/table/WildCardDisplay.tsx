@@ -2,22 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { TileRenderer } from '../common/TileRenderer.js';
 import { useScale } from '../../hooks/useScale.js';
-import { TileDef } from '@mahjong/game-core';
-
-function parseTileId(id: string): TileDef {
-  const parts = id.split('-');
-  const suitNames = ['man', 'pin', 'sou'];
-  const windNames = ['east', 'south', 'west', 'north'];
-  const dragonNames = ['haku', 'hatsu', 'chun'];
-  const honorNames = [...windNames, ...dragonNames];
-
-  if (suitNames.includes(parts[0])) {
-    return { id, suit: parts[0] as 'man' | 'pin' | 'sou', rank: parseInt(parts[1], 10), isFlower: false };
-  } else if (honorNames.includes(parts[0])) {
-    return { id, honorType: windNames.includes(parts[0]) ? 'wind' : 'dragon', honorName: parts[0] as any, isFlower: false };
-  }
-  return { id, isFlower: false };
-}
+import { parseTileId } from '../../lib/tile-utils.js';
 
 interface WildCardDisplayProps {
   wildCardTileId?: string | null;
@@ -79,29 +64,30 @@ export function WildCardDisplay({ wildCardTileId }: WildCardDisplayProps) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '2px',
+        gap: '4px',
         zIndex: 200,
-        background: 'rgba(0,0,0,0.5)',
-        padding: `${4 * scale}px ${8 * scale}px ${6 * scale}px`,
-        borderRadius: '8px',
-        border: '1px solid rgba(251,191,36,0.25)',
+        background: 'linear-gradient(180deg, rgba(11,18,30,0.82), rgba(29,15,43,0.82))',
+        padding: `${5 * scale}px ${9 * scale}px ${7 * scale}px`,
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.18)',
         backdropFilter: 'blur(4px)',
         cursor: isDragging ? 'grabbing' : 'grab',
         touchAction: isDragging ? 'none' : 'auto',
         userSelect: 'none',
         transition: isDragging ? 'none' : 'box-shadow 150ms ease',
-        ...(isDragging && { boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }),
+        boxShadow: '0 10px 24px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.05)',
+        ...(isDragging && { boxShadow: '0 14px 26px rgba(0,0,0,0.45)' }),
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      <div style={{ fontSize: `${0.9375 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#fbbf24', fontWeight: 700 }}>
-        Wild
+      <div style={{ fontSize: `${0.8 * scale}rem`, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#fff', fontWeight: 900, textShadow: '0 1px 4px rgba(0,0,0,0.45)' }}>
+        Joker
         <span style={{ fontSize: `${0.75 * scale}rem`, opacity: 0.6, marginLeft: '4px' }}>&#x2630;</span>
       </div>
-      <div style={{ border: `1.5px solid #fbbf24`, borderRadius: '6px', boxShadow: '0 0 8px rgba(251,191,36,0.4)' }}>
-        <TileRenderer tile={tile} width={tileW} height={tileH} />
+      <div style={{ borderRadius: '8px' }}>
+        <TileRenderer tile={tile} width={tileW} height={tileH} isWild showWildBadge />
       </div>
     </div>
   );
