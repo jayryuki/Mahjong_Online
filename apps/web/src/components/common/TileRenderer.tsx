@@ -23,6 +23,9 @@ export function TileRenderer({ tile, width = 72, height = 96, selected, onClick 
 
   const src = getTileImageUrl(imageName, theme, themeStyle);
   const label = tile.rank ? String(tile.rank) : WIND_LABELS[tile.honorName ?? ''] ?? null;
+  const imageFilter = selected
+    ? 'var(--mahjong-tile-filter) brightness(1.08) var(--mahjong-tile-symbol-outline-filter)'
+    : 'var(--mahjong-tile-filter) var(--mahjong-tile-symbol-outline-filter)';
 
   return (
     <div
@@ -44,10 +47,10 @@ export function TileRenderer({ tile, width = 72, height = 96, selected, onClick 
           display: 'block',
           borderRadius: '6px',
           objectFit: 'contain',
-          filter: selected ? 'var(--mahjong-tile-filter) brightness(1.08)' : 'var(--mahjong-tile-filter)',
+          filter: imageFilter,
           transition: 'filter 120ms ease',
           background: 'var(--tile-face-bg)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.42), 0 2px 5px rgba(0,0,0,0.16)',
+          boxShadow: 'var(--mahjong-tile-outline-shadow)',
           border: selected ? '2px solid var(--accent-warm)' : '1px solid var(--tile-face-border)',
           boxSizing: 'border-box',
         }}
@@ -60,8 +63,9 @@ export function TileRenderer({ tile, width = 72, height = 96, selected, onClick 
           fontSize: Math.max(9, width * 0.17),
           fontWeight: 700,
           lineHeight: 1,
-          color: 'var(--text-primary)',
-          opacity: 0.45,
+          color: 'var(--tile-stroke)',
+          opacity: 0.72,
+          textShadow: 'var(--mahjong-tile-label-outline-shadow)',
           pointerEvents: 'none',
           fontFamily: "'Inter', sans-serif",
         }}>
