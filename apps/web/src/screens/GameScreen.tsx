@@ -102,6 +102,8 @@ interface TableNoticeData {
   tileIds?: string[];
 }
 
+const SEAT_ORDER = [0, 1, 2, 3] as const;
+
 interface GameScreenProps {
   room: any;
   mySessionId: string;
@@ -439,6 +441,12 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setHandResult({ endReason: 'match-end', finalScores: data.finalScores });
     };
 
+    const onSeatJoinError = (data: { reason?: string }) => {
+      const message = data.reason || 'That seat cannot be joined right now.';
+      setStatusMessage(message);
+      showCallNotice(message);
+    };
+
     const onBlindKanReactionOptions = (data: { kanSeat: number; kanTileId: string; actions: string[] }) => {
       setBlindKanReactionOptions(data.actions);
       setBlindKanTileId(data.kanTileId);
@@ -465,6 +473,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     unsubs.push(room.onMessage('match-end', onMatchEnd));
     unsubs.push(room.onMessage('blind-kan-reaction-options', onBlindKanReactionOptions));
     unsubs.push(room.onMessage('spectator-hand-state', onSpectatorHandState));
+    unsubs.push(room.onMessage('seat-join-error', onSeatJoinError));
     unsubs.push(room.onMessage('seat-joined', (data: { seatIndex: number }) => {
       setIsSpectator(false);
       setSpectatorAllHands(null);
@@ -779,26 +788,43 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'auto' }}>
       {/* === ZONE 1: Top HUD === */}
       <div style={{ flexShrink: 0, position: 'relative' }}>
-        <InfoBar roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
-        <div style={{ position: 'absolute', top: isMobile ? 4 : 10, right: isMobile ? 6 : 12, zIndex: 60, display: 'flex', gap: isMobile ? '4px' : '8px', alignItems: 'center' }}>
-          <ThemePicker style={isMobile ? { gap: '0.3rem', transform: 'scale(0.9)', transformOrigin: 'top right' } : undefined} />
-          <button
-            onClick={() => setShowLeaveConfirm(true)}
-            style={{
-              background: 'rgba(0,0,0,0.5)',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '10px',
-              padding: isMobile ? '4px 8px' : '7px 12px',
-              cursor: 'pointer',
-              fontSize: `${(isMobile ? 0.95 : 1.125) * scale}rem`,
-              fontWeight: 600,
-              fontFamily: "'Inter', sans-serif",
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            Exit
-          </button>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          gap: isMobile ? '0.35rem' : '0.75rem',
+          padding: isMobile ? '0.35rem 0.45rem' : '0.35rem 0.6rem',
+          background: 'var(--surface-panel)',
+          borderBottom: '1px solid var(--border-subtle)',
+        }}>
+          <InfoBar embedded roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
+          <div style={{
+            display: 'flex',
+            justifyContent: isMobile ? 'space-between' : 'flex-end',
+            gap: isMobile ? '0.35rem' : '0.5rem',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}>
+            <ThemePicker style={isMobile ? { gap: '0.25rem', transform: 'scale(0.88)', transformOrigin: 'center right' } : undefined} />
+            <button
+              onClick={() => setShowLeaveConfirm(true)}
+              style={{
+                background: 'rgba(0,0,0,0.5)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                padding: isMobile ? '4px 8px' : '7px 12px',
+                cursor: 'pointer',
+                fontSize: `${(isMobile ? 0.95 : 1.125) * scale}rem`,
+                fontWeight: 600,
+                fontFamily: "'Inter', sans-serif",
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              Exit
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1099,26 +1125,41 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           {(phase === 'HAND_END' || phase === 'ROUND_END' || phase === 'MATCH_END') && (
             <div style={{ marginTop: `${1 * scale}rem` }}>
               <div style={{ color: '#ccc', fontSize: `${0.9 * scale}rem`, marginBottom: `${0.5 * scale}rem` }}>
-                Open seats available:
+                Join next game:
               </div>
               <div style={{ display: 'flex', gap: `${0.5 * scale}rem` }}>
-                {[0, 1, 2, 3].map((seatIdx) => {
+                {SEAT_ORDER.map((seatIdx) => {
                   const seatPlayer: any = roomState?.players ? Array.from(roomState.players.values()).find((p: any) => p.seatIndex === seatIdx && !p.isSpectator) : null;
-                  const isOccupied = seatPlayer && seatPlayer.isConnected;
-                  if (isOccupied) return null;
+                  const isBotSeat = typeof seatPlayer?.playerId === 'string' && seatPlayer.playerId.startsWith('bot-');
+                  const humansAtTable = roomState?.players
+                    ? Array.from(roomState.players.values()).filter((p: any) => !p.isSpectator && !String(p.playerId).startsWith('bot-')).length
+                    : 0;
+                  const disabled = !isBotSeat;
                   return (
                     <button
                       key={seatIdx}
-                      onClick={() => room?.send('spectator-join-seat', { seatIndex: seatIdx })}
+                      onClick={() => {
+                        if (disabled) {
+                          const message = humansAtTable >= 4
+                            ? 'All four seats already have human players. Join next game only replaces bots.'
+                            : 'Join next game only works to replace a bot.';
+                          setStatusMessage(message);
+                          showCallNotice(message);
+                          return;
+                        }
+                        room?.send('spectator-join-seat', { seatIndex: seatIdx });
+                      }}
+                      aria-disabled={disabled}
                       style={{
                         padding: `${0.5 * scale}rem ${1 * scale}rem`,
-                        background: 'var(--accent-warm)',
+                        background: disabled ? 'rgba(255,255,255,0.12)' : 'var(--accent-warm)',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '6px',
-                        cursor: 'pointer',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
                         fontSize: `${0.9 * scale}rem`,
                         fontWeight: 600,
+                        opacity: disabled ? 0.55 : 1,
                       }}
                     >
                       Seat {seatIdx} ({['East', 'South', 'West', 'North'][seatIdx]})
@@ -1278,7 +1319,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           justifyContent: 'center',
           zIndex: 200,
         }}>
-          {handResult.endReason !== 'exhaustive-draw' && (
+          {handResult && handResult.endReason !== 'exhaustive-draw' && (
             <div className="mj-win-confetti" aria-hidden="true">
               {Array.from({ length: 24 }).map((_, i) => <i key={i} style={{ ['--i' as any]: i }} />)}
             </div>

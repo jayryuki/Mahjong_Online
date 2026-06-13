@@ -6,9 +6,10 @@ interface InfoBarProps {
   honba: number;
   riichiSticks: number;
   wallRemaining: number;
+  embedded?: boolean;
 }
 
-export function InfoBar({ roundWind, handNumber, honba, wallRemaining }: InfoBarProps) {
+export function InfoBar({ roundWind, handNumber, honba, wallRemaining, embedded = false }: InfoBarProps) {
   const scale = useScale();
   const wind = roundWind.charAt(0).toUpperCase() + roundWind.slice(1);
   const fontSize = `${0.875 * scale}rem`;
@@ -16,13 +17,14 @@ export function InfoBar({ roundWind, handNumber, honba, wallRemaining }: InfoBar
   return (
     <div style={{
       display: 'flex',
-      justifyContent: 'center',
-      gap: `${1.25 * scale}rem`,
-      padding: `${0.25 * scale}rem ${0.5 * scale}rem`,
-      background: 'var(--surface-panel)',
-      borderBottom: '1px solid var(--border-subtle)',
+      justifyContent: embedded ? 'flex-start' : 'center',
+      gap: `${(embedded ? 0.75 : 1.25) * scale}rem`,
+      padding: embedded ? 0 : `${0.25 * scale}rem ${0.5 * scale}rem`,
+      background: embedded ? 'transparent' : 'var(--surface-panel)',
+      borderBottom: embedded ? 'none' : '1px solid var(--border-subtle)',
       flexShrink: 0,
       lineHeight: 1.3,
+      flexWrap: 'wrap',
     }}>
       {[
         { k: 'Wind', v: wind },

@@ -144,10 +144,10 @@ export function MobileSeatFeed({
   const meldTileH = Math.max(36, Math.round(68 * scale));
   const orderedSeats = useMemo(
     () =>
-      [2, 3, 1, 0]
-        .map((offset) => seats.find((seat) => seat.seatIndex === (mySeat + offset) % 4))
+      [0, 1, 2, 3]
+        .map((seatIndex) => seats.find((seat) => seat.seatIndex === seatIndex))
         .filter((seat): seat is SeatDisplay => !!seat),
-    [mySeat, seats],
+    [seats],
   );
 
   return (
@@ -200,8 +200,9 @@ export function MobileSeatFeed({
                 ? 'linear-gradient(180deg, rgba(184,92,58,0.18), rgba(7,16,14,0.28))'
                 : 'rgba(9, 20, 18, 0.26)',
               border: `1px solid ${seat.isActive ? 'rgba(245,196,81,0.55)' : 'rgba(255,255,255,0.1)'}`,
+              outline: seat.isActive ? '2px solid rgba(245,196,81,0.42)' : 'none',
               boxShadow: seat.isActive
-                ? '0 8px 18px rgba(184,92,58,0.16), inset 0 1px 0 rgba(255,255,255,0.08)'
+                ? '0 0 0 1px rgba(255,255,255,0.12), 0 0 22px rgba(245,196,81,0.28), 0 8px 18px rgba(184,92,58,0.18), inset 0 1px 0 rgba(255,255,255,0.12)'
                 : '0 7px 16px rgba(0,0,0,0.11)',
               backdropFilter: 'blur(8px)',
             }}

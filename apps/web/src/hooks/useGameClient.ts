@@ -1,6 +1,22 @@
 import { useState, useCallback, useRef } from 'react';
 import { colyseusClient } from '../lib/colyseus.js';
 
+const PLAYER_KEY_STORAGE = 'mahjong_playerKey';
+
+function getPersistentPlayerKey() {
+  try {
+    const existing = localStorage.getItem(PLAYER_KEY_STORAGE);
+    if (existing) return existing;
+    const created = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `mahjong-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(PLAYER_KEY_STORAGE, created);
+    return created;
+  } catch {
+    return `mahjong-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
 export function useGameClient(roomId: string) {
   const [room, setRoom] = useState<any>(null);
   const [state, setState] = useState<any>(null);
@@ -9,7 +25,8 @@ export function useGameClient(roomId: string) {
 
   const join = useCallback(async (displayName: string) => {
     try {
-      const r = await colyseusClient.joinById(roomId, { displayName });
+      const playerKey = getPersistentPlayerKey();
+      const r = await colyseusClient.joinById(roomId, { displayName, playerKey });
       roomRef.current = r;
       setRoom(r);
       r.onStateChange((s: any) => {
