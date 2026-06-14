@@ -7,10 +7,7 @@ import { Button, ThemePicker } from '@games/ui';
 import { ChatPanel, ChatMessageData } from '../components/common/ChatPanel.js';
 import { TileRenderer } from '../components/common/TileRenderer.js';
 import { InfoBar } from '../components/table/InfoBar.js';
-import { CenterRiver } from '../components/table/CenterRiver.js';
-import { SeatPosition } from '../components/table/SeatPosition.js';
 import { WildCardDisplay } from '../components/table/WildCardDisplay.js';
-import { MobileSeatFeed } from '../components/table/MobileSeatFeed.js';
 import { useScale } from '../hooks/useScale.js';
 import { clearRoom } from '../lib/gameContext.js';
 import { TileDef } from '@mahjong/game-core';
@@ -59,6 +56,21 @@ function formatMeldLabel(type: string): string {
   return 'Meld';
 }
 
+function renderConcealedMeldTile(width: number, height: number) {
+  return (
+    <div
+      style={{
+        width,
+        height,
+        borderRadius: '8px',
+        background: 'var(--mahjong-concealed-tile-bg)',
+        border: '1px solid var(--game-panel-border)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 5px 14px rgba(0,0,0,0.18)',
+      }}
+    />
+  );
+}
+
 // Apply custom hand ordering; falls back to default sort for tiles not in the order
 function applyOrder(tiles: TileDef[], order: string[] | null): TileDef[] {
   if (!order) return [...tiles].sort((a, b) => tileKey(a).localeCompare(tileKey(b)));
@@ -103,6 +115,9 @@ interface TableNoticeData {
 }
 
 const SEAT_ORDER = [0, 1, 2, 3] as const;
+const DISCARD_COLUMNS = 10;
+const DISCARD_PANEL_MAX_WIDTH = 1040;
+const TURN_BAR_MIN_HEIGHT = 52;
 
 interface GameScreenProps {
   room: any;
@@ -158,7 +173,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   // Status message
   const [statusMessage, setStatusMessage] = useState<string>('Connecting...');
   const [callNotice, setCallNotice] = useState<string | null>(null);
-  const [recentActionBySeat, setRecentActionBySeat] = useState<Record<number, { label: string }>>({});
 
   // Whether it's currently the player's turn (for visual emphasis)
   const [isMyTurn, setIsMyTurn] = useState(false);
@@ -301,7 +315,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setHandVersion(data.handVersion);
       setHandResult(null);
       if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
-      setRecentActionBySeat({});
       setCallNotice(null);
 
       // Reconstruct turn state from server response
@@ -342,7 +355,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setHandResult(null);
       setIsMyTurn(false);
       if (data.wildCardTileId) setWildCardTileId(data.wildCardTileId);
-      setRecentActionBySeat({});
       setCallNotice(null);
     };
 
@@ -405,12 +417,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
       setStatusMessage(message);
       showCallNotice(message);
-      setRecentActionBySeat((prev) => ({
-        ...prev,
-        [data.actorSeat]: {
-          label: claimedLabel ? `${meldLabel} · ${claimedLabel}` : meldLabel,
-        },
-      }));
       playReactionSound();
     };
 
@@ -420,7 +426,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setReactionOptions([]);
       setBlindKanReactionOptions([]);
       setDrawnTileId(null);
-      setRecentActionBySeat({});
       setCallNotice(null);
       if (data.endReason === 'exhaustive-draw') {
         setStatusMessage('Exhaustive draw! No one wins this hand.');
@@ -479,7 +484,6 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       setSpectatorAllHands(null);
       setMySeat(data.seatIndex);
       mySeatRef.current = data.seatIndex;
-      setRecentActionBySeat({});
       setCallNotice(null);
       room.send('request-hand');
     }));
@@ -512,7 +516,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
     switch (action) {
       case 'DRAW_TILE':
-        room.send('draw-tile');
+        room.send('draw-tile', { auto: false });
         setStatusMessage('Drawing tile...');
         setLegalActions([]);
         break;
@@ -601,7 +605,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   const handleDiscard = useCallback((tile: TileDef) => {
     resetTurnTimer();
     if (!room) return;
-    room.send('discard-tile', { tileId: tile.id });
+    room.send('discard-tile', { tileId: tile.id, auto: false });
     setHandTiles((prev) => prev.filter((t) => t.id !== tile.id));
     setDrawnTileId(null);
     setLegalActions([]);
@@ -720,16 +724,27 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
 
   const scale = useScale();
   const isMobile = scale < 0.75;
+  const discardHistoryTileIds: string[] = roomState?.discardHistoryTileIds
+    ? String(roomState.discardHistoryTileIds).split(',').filter(Boolean)
+    : [];
+  const discardHistoryTiles = discardHistoryTileIds.map((tileId, index) => ({
+    tile: parseTileId(tileId),
+    key: `${tileId}-${index}`,
+  }));
+  const seatStripWidth = isMobile ? 'calc((100% - 0.9rem) / 4)' : 'minmax(0, 1fr)';
+  const sharedDiscardTileW = Math.max(28, Math.round((isMobile ? 40 : 56) * scale));
+  const sharedDiscardTileH = Math.max(40, Math.round((isMobile ? 56 : 78) * scale));
+  const sharedMeldTileW = Math.max(16, Math.round((isMobile ? 18 : 21) * scale));
+  const sharedMeldTileH = Math.max(24, Math.round((isMobile ? 26 : 31) * scale));
+  const currentTurnSeat = seatDisplays.find((seat) => seat.isActive) ?? null;
+  const currentTurnLabel = currentTurnSeat
+    ? `${formatSeatWind(currentTurnSeat.seatIndex)} · ${currentTurnSeat.displayName}`
+    : 'Waiting for next turn';
 
   // Render a tile for the winning hand display
   const renderResultTile = (tile: TileDef, w: number, h: number) => {
     return <TileRenderer tile={tile} width={Math.round(w * scale)} height={Math.round(h * scale)} />;
   };
-
-  // Resolve opponent seats
-  const rightSeat = seatDisplays.find(s => s.seatIndex === (mySeat + 1) % 4);
-  const acrossSeat = seatDisplays.find(s => s.seatIndex === (mySeat + 2) % 4);
-  const leftSeat = seatDisplays.find(s => s.seatIndex === (mySeat + 3) % 4);
 
   const canDiscard = legalActions.includes('DISCARD_TILE');
 
@@ -757,7 +772,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       if (remaining > 0) return;
 
       if (legalActions.includes('DRAW_TILE')) {
-        room?.send('draw-tile');
+        room?.send('draw-tile', { auto: true });
         turnDeadlineRef.current = Date.now() + 30000;
         setTurnSecondsLeft(30);
         setAutoPlayWarning(false);
@@ -768,7 +783,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
         const stableTiles = handTiles.filter((tile) => tile.id !== drawnTileId);
         const autoTile = stableTiles[stableTiles.length - 1] ?? handTiles[handTiles.length - 1];
         if (autoTile) {
-          room?.send('discard-tile', { tileId: autoTile.id });
+          room?.send('discard-tile', { tileId: autoTile.id, auto: true });
           turnDeadlineRef.current = null;
         }
       }
@@ -829,52 +844,321 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       </div>
 
       {/* === ZONE 2: Center board (discard region) === */}
-      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: isMobile ? '34dvh' : '40dvh', position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
-        {isMobile ? (
-          <MobileSeatFeed
-            seats={seatDisplays}
-            mySeat={mySeat}
-            wildCardTileId={wildCardTileId}
-            noticeText={callNotice}
-            recentActionBySeat={recentActionBySeat}
-          />
-        ) : (
-          <>
-            <div style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none' }}>
-              <CenterRiver mySeat={mySeat} seats={seatDisplays} />
-            </div>
+      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: isMobile ? '36dvh' : '44dvh', position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
+        <div style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          background: 'radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 40%), linear-gradient(180deg, rgba(20,20,18,0.9), rgba(10,10,10,0.94))',
+          padding: '0.65rem 0.75rem 0.85rem',
+          gap: '0.65rem',
+          position: 'relative',
+          zIndex: 1,
+        }}>
             <div style={{
-              width: '100%',
-              height: '100%',
-              display: 'grid',
-              gridTemplateRows: 'auto 1fr auto',
-              gridTemplateColumns: 'minmax(0, 0.4fr) 3.2fr minmax(0, 0.4fr)',
-              gridTemplateAreas: `
-                ". top ."
-                "left center right"
-                ". bottom ."
-              `,
-              minHeight: 0,
-              background: 'radial-gradient(ellipse at center, var(--mahjong-table-center) 0%, var(--mahjong-table-bg) 62%, var(--mahjong-table-edge) 100%)',
-              padding: '6px',
-              gap: '6px',
-              position: 'relative',
-              zIndex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+              padding: '0.4rem 0.7rem',
+              minHeight: `${TURN_BAR_MIN_HEIGHT}px`,
+              borderRadius: '18px',
+              background: currentTurnSeat
+                ? 'linear-gradient(135deg, rgba(184,92,58,0.24), rgba(255,255,255,0.08))'
+                : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${currentTurnSeat ? 'rgba(245,196,81,0.45)' : 'rgba(255,255,255,0.08)'}`,
+              boxShadow: currentTurnSeat ? '0 10px 28px rgba(184,92,58,0.16)' : '0 8px 22px rgba(0,0,0,0.16)',
             }}>
-              <div style={{ gridArea: 'top', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '2px 8px' }}>
-                {acrossSeat && <SeatPosition position="top" isActive={acrossSeat.isActive} melds={acrossSeat.melds} />}
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontSize: `${0.72 * scale}rem`,
+                  color: 'var(--game-on-table-muted)',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.12em',
+                }}>
+                  Current turn
+                </div>
+                <div style={{
+                  fontSize: `${1.08 * scale}rem`,
+                  color: 'var(--game-on-table-text)',
+                  fontWeight: 900,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {currentTurnLabel}
+                </div>
               </div>
-              <div style={{ gridArea: 'left', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
-                {leftSeat && <SeatPosition position="left" isActive={leftSeat.isActive} melds={leftSeat.melds} />}
-              </div>
-              <div style={{ gridArea: 'center', minHeight: 0 }} />
-              <div style={{ gridArea: 'right', alignSelf: 'center', justifySelf: 'center', zIndex: 4, overflow: 'hidden', maxWidth: '100%', padding: '4px' }}>
-                {rightSeat && <SeatPosition position="right" isActive={rightSeat.isActive} melds={rightSeat.melds} />}
-              </div>
-              <div style={{ gridArea: 'bottom' }} />
+              {callNotice && (
+                <div style={{
+                  maxWidth: '48%',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '999px',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'var(--game-on-table-text)',
+                  fontSize: `${0.74 * scale}rem`,
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {callNotice}
+                </div>
+              )}
             </div>
-          </>
-        )}
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(4, minmax(82px, 1fr))' : `repeat(4, ${seatStripWidth})`,
+              gap: '0.5rem',
+              alignItems: 'stretch',
+            }}>
+              {SEAT_ORDER.map((seatIndex) => {
+                const seat = seatDisplays.find((entry) => entry.seatIndex === seatIndex);
+                if (!seat) return null;
+                const melds = seat.melds.filter((meld) => ['chi', 'pon', 'kan-open', 'kan-added', 'kan-closed'].includes(meld.type));
+                return (
+                  <div
+                    key={seatIndex}
+                    style={{
+                      minWidth: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.42rem',
+                      padding: '0.45rem',
+                      borderRadius: '16px',
+                      background: seat.isActive
+                        ? 'linear-gradient(180deg, rgba(184,92,58,0.2), rgba(255,255,255,0.05))'
+                        : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${seat.isActive ? 'rgba(245,196,81,0.48)' : 'rgba(255,255,255,0.08)'}`,
+                      boxShadow: seat.isActive ? '0 0 0 1px rgba(255,255,255,0.08), 0 10px 28px rgba(184,92,58,0.14)' : '0 8px 22px rgba(0,0,0,0.12)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.35rem', minWidth: 0 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{
+                          fontSize: `${0.72 * scale}rem`,
+                          color: 'var(--game-on-table-muted)',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.1em',
+                        }}>
+                          {formatSeatWind(seatIndex)}
+                        </div>
+                        <div style={{
+                          fontSize: `${0.88 * scale}rem`,
+                          color: 'var(--game-on-table-text)',
+                          fontWeight: 800,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}>
+                          {seat.displayName}
+                        </div>
+                      </div>
+                      <div style={{
+                        flexShrink: 0,
+                        padding: '0.18rem 0.42rem',
+                        borderRadius: '999px',
+                        background: seat.isActive ? 'var(--accent-warm)' : 'rgba(255,255,255,0.07)',
+                        color: '#fff',
+                        fontSize: `${0.68 * scale}rem`,
+                        fontWeight: 900,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                      }}>
+                        {seat.isActive ? 'Turn' : `${seat.tileCount}t`}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.35rem',
+                      minHeight: `${Math.max(92, sharedMeldTileH * 2 + 28)}px`,
+                    }}>
+                      {melds.length === 0 ? (
+                        <div style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center',
+                          borderRadius: '12px',
+                          border: '1px dashed rgba(255,255,255,0.12)',
+                          color: 'var(--game-on-table-muted)',
+                          fontSize: `${0.72 * scale}rem`,
+                          fontWeight: 700,
+                          padding: '0.5rem 0.35rem',
+                        }}>
+                          No chi or pon yet
+                        </div>
+                      ) : (
+                        melds.map((meld, meldIndex) => {
+                          const tileIds = meld.tiles?.map((tile: any) => (typeof tile === 'string' ? tile : tile.id)) ?? [];
+                          return (
+                            <div
+                              key={`${meld.type}-${meldIndex}`}
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.22rem',
+                                padding: '0.3rem',
+                                borderRadius: '12px',
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                              }}
+                            >
+                              <span style={{
+                                fontSize: `${0.62 * scale}rem`,
+                                color: 'var(--game-on-table-muted)',
+                                fontWeight: 800,
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                              }}>
+                                {formatMeldLabel(meld.type)}
+                              </span>
+                              <div style={{ display: 'flex', gap: '2px', flexWrap: 'nowrap' }}>
+                                {meld.isConcealed
+                                  ? tileIds.map((_, tileIndex) => (
+                                      <div key={`${meld.type}-${meldIndex}-concealed-${tileIndex}`}>
+                                        {renderConcealedMeldTile(sharedMeldTileW, sharedMeldTileH)}
+                                      </div>
+                                    ))
+                                  : tileIds.map((tileId: string, tileIndex: number) => {
+                                      const tile = parseTileId(tileId);
+                                      return (
+                                        <TileRenderer
+                                          key={`${tileId}-${tileIndex}`}
+                                          tile={tile}
+                                          width={sharedMeldTileW}
+                                          height={sharedMeldTileH}
+                                          isWild={!!wildCardTileId && tileKey(tile) === tileKey(parseTileId(wildCardTileId))}
+                                        />
+                                      );
+                                    })}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'stretch',
+            }}>
+              <div style={{
+                flex: 1,
+                width: '100%',
+                maxWidth: `${DISCARD_PANEL_MAX_WIDTH}px`,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                padding: '0.7rem 0.8rem 0.8rem',
+                borderRadius: '22px',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 32px rgba(0,0,0,0.2)',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                  flexWrap: 'wrap',
+                }}>
+                  <div>
+                    <div style={{
+                      fontSize: `${1.12 * scale}rem`,
+                      color: 'var(--game-on-table-text)',
+                      fontWeight: 900,
+                    }}>
+                      Discard area
+                    </div>
+                    <div style={{
+                      fontSize: `${0.74 * scale}rem`,
+                      color: 'var(--game-on-table-muted)',
+                      fontWeight: 700,
+                    }}>
+                      {discardHistoryTiles.length} tiles shown in play order
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '0.28rem 0.6rem',
+                    borderRadius: '999px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'var(--game-on-table-muted)',
+                    fontSize: `${0.68 * scale}rem`,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                  }}>
+                    Shared pile
+                  </div>
+                </div>
+
+                <div style={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: 'auto',
+                  paddingRight: '0.15rem',
+                }}>
+                  {discardHistoryTiles.length === 0 ? (
+                    <div style={{
+                      minHeight: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      borderRadius: '18px',
+                      border: '1px dashed rgba(255,255,255,0.12)',
+                      color: 'var(--game-on-table-muted)',
+                      fontSize: `${0.84 * scale}rem`,
+                      fontWeight: 700,
+                      padding: '1rem',
+                    }}>
+                      Discards will appear here in one ordered pile.
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${DISCARD_COLUMNS}, minmax(0, ${sharedDiscardTileW}px))`,
+                      justifyContent: 'center',
+                      alignContent: 'start',
+                      gap: isMobile ? '0.28rem' : '0.38rem',
+                    }}>
+                      {discardHistoryTiles.map((entry, index) => (
+                        <div
+                          key={entry.key}
+                          style={{
+                            position: 'relative',
+                            width: `${sharedDiscardTileW}px`,
+                            height: `${sharedDiscardTileH}px`,
+                          }}
+                        >
+                          <TileRenderer tile={entry.tile} width={sharedDiscardTileW} height={sharedDiscardTileH} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         <WildCardDisplay wildCardTileId={wildCardTileId} />
       </div>
 
