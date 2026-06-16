@@ -1569,11 +1569,11 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                 )}
               </>
             )}
-            {phase === 'HAND_END' && (
+            {(phase === 'HAND_END' || handResult.endReason === 'match-end') && (
               <Button
                 onClick={() => {
                   if (handResult.endReason === 'match-end') {
-                    navigate('/');
+                    handleLeave();
                   } else {
                     room?.send('next-hand');
                     setHandResult(null);
