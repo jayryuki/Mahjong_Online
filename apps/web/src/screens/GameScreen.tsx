@@ -802,7 +802,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', overflowX: 'hidden', overflowY: 'auto' }}>
       {/* === ZONE 1: Top HUD === */}
-      <div style={{ flexShrink: 0, position: 'relative' }}>
+      <div className="mj-table-topbar" style={{ flexShrink: 0, position: 'relative' }}>
         <div style={{
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
@@ -810,8 +810,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
           justifyContent: 'space-between',
           gap: isMobile ? '0.35rem' : '0.75rem',
           padding: isMobile ? '0.35rem 0.45rem' : '0.35rem 0.6rem',
-          background: 'var(--surface-panel)',
-          borderBottom: '1px solid var(--border-subtle)',
+          background: 'transparent',
+          borderBottom: 'none',
         }}>
           <InfoBar embedded roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
           <div style={{
@@ -844,7 +844,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       </div>
 
       {/* === ZONE 2: Center board (discard region) === */}
-      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: isMobile ? '36dvh' : '44dvh', position: 'relative', overflow: 'hidden', borderRadius: '0 0 8px 8px' }}>
+      <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: isMobile ? '36dvh' : '44dvh', position: 'relative', overflow: 'hidden', borderRadius: '0' }}>
         <div style={{
           width: '100%',
           height: '100%',

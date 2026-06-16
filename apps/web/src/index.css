@@ -163,6 +163,11 @@
   text-shadow: var(--game-text-outline-shadow);
 }
 
+.mj-table-topbar {
+  color: var(--game-on-table-text);
+  text-shadow: var(--game-text-outline-shadow);
+}
+
 .mj-table-stage::after {
   content: '';
   position: absolute;
@@ -189,6 +194,20 @@
 .mj-player-dock [style*="var(--text-muted)"] { color: var(--game-on-table-muted) !important; }
 .mj-player-dock [style*="var(--text-secondary)"] { color: var(--game-on-table-muted) !important; }
 .mj-player-dock [style*="var(--text-primary)"] { color: var(--game-on-table-text) !important; }
+
+.mj-table-chat {
+  color: var(--game-on-table-text) !important;
+  text-shadow: none !important;
+}
+
+.mj-table-chat,
+.mj-table-chat * {
+  font-family: inherit;
+}
+
+.mj-table-chat__input::placeholder {
+  color: color-mix(in srgb, var(--game-on-table-muted) 75%, transparent);
+}
 
 .mj-player-dock button:not(:disabled) {
   transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;

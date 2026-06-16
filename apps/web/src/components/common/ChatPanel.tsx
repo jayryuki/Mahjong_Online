@@ -19,6 +19,14 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scale = useScale();
+  const chatThemeVars = {
+    '--mj-chat-surface': 'var(--surface-panel)',
+    '--mj-chat-surface-raised': 'var(--surface-panel-raised)',
+    '--mj-chat-border': 'var(--border-subtle)',
+    '--mj-chat-text': 'var(--text-primary)',
+    '--mj-chat-muted': 'var(--text-secondary)',
+    '--mj-chat-accent': 'var(--accent-warm)',
+  } as React.CSSProperties;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -38,22 +46,25 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
 
   return (
     <div style={{
+      ...chatThemeVars,
       position: 'relative',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'flex-start',
       flexShrink: 0,
+      color: 'var(--mj-chat-text)',
+      textShadow: 'none',
     }}>
       {/* Popup panel - opens upward */}
       {isOpen && (
-        <div style={{
+        <div className="mj-table-chat" style={{
           position: 'absolute',
           bottom: '100%',
           right: 0,
           marginBottom: 4,
           width: Math.min(280, window.innerWidth - 24),
-          background: 'var(--surface-panel)',
-          border: '1px solid var(--border-subtle)',
+          background: 'var(--mj-chat-surface)',
+          border: '1px solid var(--mj-chat-border)',
           borderRadius: 10,
           display: 'flex',
           flexDirection: 'column',
@@ -77,7 +88,7 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
           >
             {messages.length === 0 && (
               <span style={{
-                color: 'var(--text-muted)',
+                color: 'var(--mj-chat-muted)',
                 fontSize: `${0.8125 * scale}rem`,
                 textAlign: 'center',
                 padding: '1rem 0',
@@ -96,14 +107,14 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
                 }}>
                   <span style={{
                     fontSize: `${0.6875 * scale}rem`,
-                    color: 'var(--text-muted)',
+                    color: isMe ? 'var(--mj-chat-accent)' : 'var(--mj-chat-muted)',
                     fontWeight: 600,
                   }}>
                     {msg.senderName}
                   </span>
                   <span style={{
                     fontSize: `${0.8125 * scale}rem`,
-                    color: 'var(--text-primary)',
+                    color: 'var(--mj-chat-text)',
                     lineHeight: 1.3,
                     wordBreak: 'break-word',
                   }}>
@@ -117,9 +128,10 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
           {/* Input */}
           <form onSubmit={handleSubmit} style={{
             display: 'flex',
-            borderTop: '1px solid var(--border-subtle)',
+            borderTop: '1px solid var(--mj-chat-border)',
           }}>
             <input
+              className="mj-table-chat__input"
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -127,9 +139,9 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
               maxLength={200}
               style={{
                 flex: 1,
-                background: 'var(--surface-panel-raised)',
+                background: 'var(--mj-chat-surface-raised)',
                 border: 'none',
-                color: 'var(--text-primary)',
+                color: 'var(--mj-chat-text)',
                 fontSize: `${0.8125 * scale}rem`,
                 padding: '8px 10px',
                 outline: 'none',
@@ -138,7 +150,7 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
             <button
               type="submit"
               style={{
-                background: 'var(--accent-warm)',
+                background: 'var(--mj-chat-accent)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '0 0 9px 0',
@@ -156,11 +168,12 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
 
       {/* Toggle button */}
       <button
+        className="mj-table-chat"
         onClick={() => setIsOpen(!isOpen)}
         style={{
-          background: hasUnread ? 'var(--accent-warm)' : 'rgba(0,0,0,0.15)',
-          color: hasUnread ? '#fff' : 'var(--text-secondary)',
-          border: hasUnread ? '1px solid var(--accent-warm)' : '1px solid var(--border-subtle)',
+          background: hasUnread ? 'var(--mj-chat-accent)' : 'color-mix(in srgb, var(--mj-chat-surface) 88%, transparent)',
+          color: hasUnread ? '#fff' : 'var(--mj-chat-muted)',
+          border: hasUnread ? '1px solid var(--mj-chat-accent)' : '1px solid var(--mj-chat-border)',
           borderRadius: 8,
           padding: `${4 * scale}px ${10 * scale}px`,
           fontSize: `${0.8125 * scale}rem`,
@@ -179,7 +192,7 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
         {hasUnread && (
           <span style={{
             background: '#fff',
-            color: 'var(--accent-warm)',
+            color: 'var(--mj-chat-accent)',
             borderRadius: '50%',
             width: 18,
             height: 18,
