@@ -168,6 +168,11 @@
   text-shadow: var(--game-text-outline-shadow);
 }
 
+.mj-table-topbar,
+.mj-table-stage {
+  color: var(--game-on-table-text);
+}
+
 .mj-table-stage::after {
   content: '';
   position: absolute;
@@ -203,6 +208,11 @@
 .mj-table-chat,
 .mj-table-chat * {
   font-family: inherit;
+}
+
+.mj-table-topbar *,
+.mj-table-stage * {
+  text-shadow: var(--game-text-outline-shadow);
 }
 
 .mj-table-chat__input::placeholder {

@@ -13,9 +13,14 @@ export function InfoBar({ roundWind, handNumber, honba, wallRemaining, embedded 
   const scale = useScale();
   const wind = roundWind.charAt(0).toUpperCase() + roundWind.slice(1);
   const fontSize = `${0.875 * scale}rem`;
+  const tableVars = {
+    '--mj-table-text': 'var(--game-on-table-text)',
+    '--mj-table-muted': 'var(--game-on-table-muted)',
+  } as React.CSSProperties;
 
   return (
     <div style={{
+      ...tableVars,
       display: 'flex',
       justifyContent: embedded ? 'flex-start' : 'center',
       gap: `${(embedded ? 0.75 : 1.25) * scale}rem`,
@@ -32,9 +37,9 @@ export function InfoBar({ roundWind, handNumber, honba, wallRemaining, embedded 
         { k: 'Honba', v: String(honba) },
         { k: 'Wall', v: String(wallRemaining) },
       ].map(({ k, v }) => (
-        <span key={k} style={{ fontSize, color: 'var(--text-muted)', fontWeight: 500 }}>
+        <span key={k} style={{ fontSize, color: 'var(--mj-table-muted)', fontWeight: 500, textShadow: 'var(--game-text-outline-shadow)' }}>
           <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>{k}</span>{' '}
-          <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{v}</span>
+          <span style={{ color: 'var(--mj-table-text)', fontWeight: 700, textShadow: 'var(--game-text-outline-shadow)' }}>{v}</span>
         </span>
       ))}
     </div>

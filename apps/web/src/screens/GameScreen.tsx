@@ -740,6 +740,20 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
   const currentTurnLabel = currentTurnSeat
     ? `${formatSeatWind(currentTurnSeat.seatIndex)} · ${currentTurnSeat.displayName}`
     : 'Waiting for next turn';
+  const topBarThemeVars = {
+    '--mj-table-panel': 'color-mix(in srgb, var(--game-panel-overlay) 88%, transparent)',
+    '--mj-table-panel-strong': 'color-mix(in srgb, var(--game-panel-overlay) 96%, transparent)',
+    '--mj-table-border': 'var(--game-panel-border)',
+    '--mj-table-text': 'var(--game-on-table-text)',
+    '--mj-table-muted': 'var(--game-on-table-muted)',
+  } as React.CSSProperties;
+  const stageThemeVars = {
+    '--mj-table-panel': 'color-mix(in srgb, var(--game-panel-overlay) 80%, transparent)',
+    '--mj-table-panel-strong': 'color-mix(in srgb, var(--game-panel-overlay) 92%, transparent)',
+    '--mj-table-border': 'var(--game-panel-border)',
+    '--mj-table-text': 'var(--game-on-table-text)',
+    '--mj-table-muted': 'var(--game-on-table-muted)',
+  } as React.CSSProperties;
 
   // Render a tile for the winning hand display
   const renderResultTile = (tile: TileDef, w: number, h: number) => {
@@ -804,14 +818,16 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       {/* === ZONE 1: Top HUD === */}
       <div className="mj-table-topbar" style={{ flexShrink: 0, position: 'relative' }}>
         <div style={{
+          ...topBarThemeVars,
           display: 'flex',
           flexDirection: isMobile ? 'column' : 'row',
           alignItems: isMobile ? 'stretch' : 'center',
           justifyContent: 'space-between',
           gap: isMobile ? '0.35rem' : '0.75rem',
-          padding: isMobile ? '0.35rem 0.45rem' : '0.35rem 0.6rem',
-          background: 'transparent',
-          borderBottom: 'none',
+          padding: isMobile ? '0.45rem 0.55rem' : '0.55rem 0.75rem',
+          background: 'var(--mj-table-panel)',
+          borderBottom: '1px solid var(--mj-table-border)',
+          boxShadow: 'inset 0 -1px 0 rgba(255,255,255,0.04)',
         }}>
           <InfoBar embedded roundWind={roomState?.roundWind ?? 'east'} handNumber={roomState?.handNumber ?? 1} honba={roomState?.honba ?? 0} riichiSticks={0} wallRemaining={roomState?.wallRemaining ?? 0} />
           <div style={{
@@ -825,9 +841,9 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             <button
               onClick={() => setShowLeaveConfirm(true)}
               style={{
-                background: 'rgba(0,0,0,0.5)',
+                background: 'var(--mj-table-panel-strong)',
                 color: '#fff',
-                border: '1px solid rgba(255,255,255,0.2)',
+                border: '1px solid var(--mj-table-border)',
                 borderRadius: '10px',
                 padding: isMobile ? '4px 8px' : '7px 12px',
                 cursor: 'pointer',
@@ -835,6 +851,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                 fontWeight: 600,
                 fontFamily: "'Inter', sans-serif",
                 backdropFilter: 'blur(4px)',
+                textShadow: 'var(--game-text-outline-shadow)',
               }}
             >
               Exit
@@ -846,13 +863,14 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
       {/* === ZONE 2: Center board (discard region) === */}
       <div className="mj-table-stage" style={{ flex: '1 1 0%', minHeight: isMobile ? '36dvh' : '44dvh', position: 'relative', overflow: 'hidden', borderRadius: '0' }}>
         <div style={{
+          ...stageThemeVars,
           width: '100%',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
           minHeight: 0,
-          background: 'radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 40%), linear-gradient(180deg, rgba(20,20,18,0.9), rgba(10,10,10,0.94))',
-          padding: '0.65rem 0.75rem 0.85rem',
+          background: 'radial-gradient(circle at top, color-mix(in srgb, var(--game-table-glow) 32%, transparent), transparent 42%)',
+          padding: '0.5rem 0.65rem 0.75rem',
           gap: '0.65rem',
           position: 'relative',
           zIndex: 1,
@@ -862,14 +880,14 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: '0.75rem',
-              padding: '0.4rem 0.7rem',
+              padding: '0.15rem 0.1rem 0.45rem',
               minHeight: `${TURN_BAR_MIN_HEIGHT}px`,
-              borderRadius: '18px',
+              borderRadius: '16px',
               background: currentTurnSeat
-                ? 'linear-gradient(135deg, rgba(184,92,58,0.24), rgba(255,255,255,0.08))'
-                : 'rgba(255,255,255,0.05)',
-              border: `1px solid ${currentTurnSeat ? 'rgba(245,196,81,0.45)' : 'rgba(255,255,255,0.08)'}`,
-              boxShadow: currentTurnSeat ? '0 10px 28px rgba(184,92,58,0.16)' : '0 8px 22px rgba(0,0,0,0.16)',
+                ? 'linear-gradient(135deg, color-mix(in srgb, var(--accent-warm) 24%, transparent), var(--mj-table-panel))'
+                : 'var(--mj-table-panel)',
+              border: `1px solid ${currentTurnSeat ? 'color-mix(in srgb, var(--accent-warm) 55%, var(--mj-table-border))' : 'var(--mj-table-border)'}`,
+              boxShadow: '0 10px 24px rgba(0,0,0,0.14)',
             }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{
@@ -897,8 +915,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                   maxWidth: '48%',
                   padding: '0.35rem 0.65rem',
                   borderRadius: '999px',
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'var(--mj-table-panel-strong)',
+                  border: '1px solid var(--mj-table-border)',
                   color: 'var(--game-on-table-text)',
                   fontSize: `${0.74 * scale}rem`,
                   fontWeight: 700,
@@ -914,7 +932,7 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
             <div style={{
               display: 'grid',
               gridTemplateColumns: isMobile ? 'repeat(4, minmax(82px, 1fr))' : `repeat(4, ${seatStripWidth})`,
-              gap: '0.5rem',
+              gap: '0.35rem',
               alignItems: 'stretch',
             }}>
               {SEAT_ORDER.map((seatIndex) => {
@@ -932,10 +950,10 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                       padding: '0.45rem',
                       borderRadius: '16px',
                       background: seat.isActive
-                        ? 'linear-gradient(180deg, rgba(184,92,58,0.2), rgba(255,255,255,0.05))'
-                        : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${seat.isActive ? 'rgba(245,196,81,0.48)' : 'rgba(255,255,255,0.08)'}`,
-                      boxShadow: seat.isActive ? '0 0 0 1px rgba(255,255,255,0.08), 0 10px 28px rgba(184,92,58,0.14)' : '0 8px 22px rgba(0,0,0,0.12)',
+                        ? 'linear-gradient(180deg, color-mix(in srgb, var(--accent-warm) 18%, transparent), var(--mj-table-panel))'
+                        : 'var(--mj-table-panel)',
+                      border: `1px solid ${seat.isActive ? 'color-mix(in srgb, var(--accent-warm) 52%, var(--mj-table-border))' : 'var(--mj-table-border)'}`,
+                      boxShadow: '0 8px 22px rgba(0,0,0,0.12)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.35rem', minWidth: 0 }}>
@@ -1009,8 +1027,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                                 gap: '0.22rem',
                                 padding: '0.3rem',
                                 borderRadius: '12px',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.08)',
+                                background: 'color-mix(in srgb, var(--mj-table-panel) 90%, transparent)',
+                                border: '1px solid var(--mj-table-border)',
                               }}
                             >
                               <span style={{
@@ -1069,9 +1087,9 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                 gap: '0.5rem',
                 padding: '0.7rem 0.8rem 0.8rem',
                 borderRadius: '22px',
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))',
-                border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 32px rgba(0,0,0,0.2)',
+                background: 'var(--mj-table-panel)',
+                border: '1px solid var(--mj-table-border)',
+                boxShadow: '0 14px 32px rgba(0,0,0,0.16)',
               }}>
                 <div style={{
                   display: 'flex',
@@ -1099,8 +1117,8 @@ export function GameScreen({ room, mySessionId, roomCode }: GameScreenProps) {
                   <div style={{
                     padding: '0.28rem 0.6rem',
                     borderRadius: '999px',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'var(--mj-table-panel-strong)',
+                    border: '1px solid var(--mj-table-border)',
                     color: 'var(--game-on-table-muted)',
                     fontSize: `${0.68 * scale}rem`,
                     fontWeight: 800,

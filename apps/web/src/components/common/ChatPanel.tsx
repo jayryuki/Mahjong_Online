@@ -20,11 +20,11 @@ export function ChatPanel({ messages, mySessionId, onSend }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scale = useScale();
   const chatThemeVars = {
-    '--mj-chat-surface': 'var(--surface-panel)',
-    '--mj-chat-surface-raised': 'var(--surface-panel-raised)',
-    '--mj-chat-border': 'var(--border-subtle)',
-    '--mj-chat-text': 'var(--text-primary)',
-    '--mj-chat-muted': 'var(--text-secondary)',
+    '--mj-chat-surface': 'var(--mj-table-panel, var(--surface-panel))',
+    '--mj-chat-surface-raised': 'var(--mj-table-panel-strong, var(--surface-panel-raised))',
+    '--mj-chat-border': 'var(--mj-table-border, var(--border-subtle))',
+    '--mj-chat-text': 'var(--mj-table-text, var(--text-primary))',
+    '--mj-chat-muted': 'var(--mj-table-muted, var(--text-secondary))',
     '--mj-chat-accent': 'var(--accent-warm)',
   } as React.CSSProperties;
 
